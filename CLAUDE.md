@@ -4,6 +4,7 @@
 금융인공지능실무 수업 중간고사 대체 발표용이며, 발표 자료는 `docs/deck/`에 있다.
 
 ## 마감과 범위
+- 배포 주소: https://financing-ai-project.streamlit.app/ (Streamlit Community Cloud, 저장소 wkdanr2405/gov-support-ai). `main`에 push하면 자동 재배포. 키는 Streamlit Secrets에 둔다.
 - 제출·발표: **2026-12-14 (월)**. 시작일 2026-11-01.
 - 제출 방식: **배포 URL** (공개 주소이므로 가상 데이터만 사용). 개발은 Claude Code 클라우드 환경에서 하고 사용자 PC에 Python 설치는 필수가 아니다.
 - 기업 규모 판정: 사용자가 고르지 않고 규칙 엔진이 자산·매출·업종·독립성으로 계산한다. 가상 서류 업로드로 항목을 채우는 시연은 4~5주차 선택 기능.
