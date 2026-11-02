@@ -50,6 +50,12 @@ def validate(text: str, facts: dict) -> list[str]:
     return problems
 
 
+def _short(title: str, n: int = 30) -> str:
+    """제목이 길면 괄호 앞에서 끊거나 말줄임표로 줄인다 (괄호가 열린 채 잘리지 않게)."""
+    t = title.split("(")[0].strip() if len(title) > n and "(" in title[:n + 10] else title
+    return t if len(t) <= n else t[:n].rstrip() + "…"
+
+
 def template_text(facts: dict) -> str:
     c = facts["세액공제(만원)"]
     lines = [f"입력하신 조건 기준으로 첫해 세액공제 예상액은 약 {c['첫해 합계']:,}만 원입니다. "
@@ -57,7 +63,7 @@ def template_text(facts: dict) -> str:
              f"연구·인력개발비 세액공제는 {c['연구인력개발비']:,}만 원으로 계산되었습니다."]
     recs = facts["추천공고"]
     if recs:
-        names = " / ".join(f"{r['제목'][:30]}({r['마감']})" for r in recs)
+        names = " / ".join(f"{_short(r['제목'])} ({r['마감']})" for r in recs)
         lines.append(f"조건에 맞는 지원사업 후보는 {names} 입니다. 신청 자격과 마감은 공고 원문에서 꼭 확인하세요.")
     else:
         lines.append("현재 조건에 맞는 지원사업 후보가 없습니다. 입력 조건을 바꿔 보세요.")

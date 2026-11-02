@@ -154,7 +154,7 @@ if ex and ex["facts"] == facts:
     st.write(ex["text"])
     st.caption(("AI 작성" if ex["source"] == "llm" else "기본 문장") + (f" · {ex['note']}" if ex["note"] else ""))
     pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"])
-    st.download_button("1페이지 PDF 내려받기", pdf, file_name="추천_리포트.pdf", mime="application/pdf")
+    st.download_button("1페이지 PDF 내려받기", pdf, file_name="recommendation_report.pdf", mime="application/pdf")
 elif ex:
     st.info("입력이 바뀌었습니다. '해설 만들기'를 다시 눌러 주세요.")
 st.warning(f"{DISCLAIMER} 신고 대행·세액 확정·세무 자문이 아닙니다.")

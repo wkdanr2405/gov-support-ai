@@ -47,3 +47,9 @@ def test_api_error_falls_back():
             def create(**kw):
                 raise RuntimeError("down")
     assert explain(FACTS, client=Boom())["source"] == "template"
+
+
+def test_long_titles_are_not_cut_inside_parentheses():
+    facts = build_facts("제조업", INP, RES, [{"title": "2026년 기술컨설팅 지원사업(서울 스타트업 Tech trade-on 프로그램) 참여기업 모집", "d_day": 59, "matched_keywords": []}], "서울")
+    text = template_text(facts)
+    assert "(서울 스타트업 Tech (D" not in text and "2026년 기술컨설팅 지원사업 (D-59)" in text
