@@ -33,30 +33,57 @@ st.caption(f"시연용 프로토타입 · 가상 기업 데이터 기준 예시 
 
 won = lambda v: f"{v:,}만 원"
 
+st.info("사용 방법: ① 아래에서 시연 시나리오를 고르거나 직접 입력 → ② 세액공제 예상액과 추천 공고 확인 → ③ 해설을 만들고 PDF로 내려받기. 가상 기업 데이터만 입력하세요.")
+
 st.header("1. 기업 정보")
 industries = industry_list()
 labels = {f"{i['code']} {i['name']}": i["code"] for i in industries}
+label_of = {code: lab for lab, code in labels.items()}
+
+# 시연 시나리오: 고르면 아래 입력칸이 한 번에 채워진다 (가상 기업)
+PRESETS = {
+    "① 서울 전자부품 제조 (설립 3년, 청년 2명 채용)": dict(ind="C26", sido="서울", founded=date(2023, 3, 15), rev=30, assets=50, big=False,
+                                                        ep=10, ec=13, yp=0, yc=2, rc=20000, rp=15000, known=True, avg4=14000),
+    "② 부산 기계장비 제조 (설립 7년, 소폭 증원)": dict(ind="C29", sido="부산", founded=date(2019, 5, 2), rev=80, assets=120, big=False,
+                                                    ep=25, ec=27, yp=3, yc=4, rc=8000, rp=7000, known=True, avg4=6500),
+    "③ 경기 소프트웨어 (설립 2년, 급성장)": dict(ind="J", sido="경기", founded=date(2024, 6, 10), rev=5, assets=8, big=False,
+                                              ep=4, ec=8, yp=1, yc=5, rc=6000, rp=0, known=False, avg4=0),
+}
+KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4"]
+
+
+def apply_preset():
+    p = PRESETS[st.session_state["preset"]]
+    for k in KEYS:
+        st.session_state[k] = label_of[p[k]] if k == "ind" else p[k]
+
+
+first = PRESETS[list(PRESETS)[0]]
+for k in KEYS:
+    st.session_state.setdefault(k, label_of[first[k]] if k == "ind" else first[k])
+st.selectbox("시연 시나리오 (선택하면 입력칸이 채워집니다)", list(PRESETS), key="preset", on_change=apply_preset)
+
 c1, c2, c3 = st.columns(3)
 with c1:
-    label = st.selectbox("업종", list(labels), index=list(labels.values()).index("C26"))
-    sido = st.selectbox("소재지 (시·도)", SIDO, index=SIDO.index("서울"))
-    founded = st.date_input("설립일", value=date(2023, 3, 15), min_value=date(1980, 1, 1), max_value=date.today())
+    label = st.selectbox("업종", list(labels), key="ind")
+    sido = st.selectbox("소재지 (시·도)", SIDO, key="sido")
+    founded = st.date_input("설립일", min_value=date(1980, 1, 1), max_value=date.today(), key="founded")
 with c2:
-    revenue = st.number_input("최근 3년 평균 매출액 (억 원)", min_value=0, value=30, step=1)
-    assets = st.number_input("자산총액 (억 원)", min_value=0, value=50, step=1)
-    big_owner = st.checkbox("자산 5천억 원 이상 법인이 지분 30% 이상을 가진 최다출자자")
+    revenue = st.number_input("최근 3년 평균 매출액 (억 원)", min_value=0, step=1, key="rev")
+    assets = st.number_input("자산총액 (억 원)", min_value=0, step=1, key="assets")
+    big_owner = st.checkbox("자산 5천억 원 이상 법인이 지분 30% 이상을 가진 최다출자자", key="big")
 with c3:
-    ep = st.number_input("전년 상시근로자 수", min_value=0, value=10, step=1)
-    ec = st.number_input("당해 상시근로자 수", min_value=0, value=13, step=1)
-    yp = st.number_input("전년 청년 등 근로자 수", min_value=0, value=0, step=1)
-    yc = st.number_input("당해 청년 등 근로자 수", min_value=0, value=2, step=1)
+    ep = st.number_input("전년 상시근로자 수", min_value=0, step=1, key="ep")
+    ec = st.number_input("당해 상시근로자 수", min_value=0, step=1, key="ec")
+    yp = st.number_input("전년 청년 등 근로자 수", min_value=0, step=1, key="yp")
+    yc = st.number_input("당해 청년 등 근로자 수", min_value=0, step=1, key="yc")
 
 st.subheader("연구·인력개발비 (만 원)")
 r1, r2, r3 = st.columns(3)
-rnd_curr = r1.number_input("당해 지출액", min_value=0, value=20000, step=100)
-rnd_prev = r2.number_input("직전 과세연도 지출액", min_value=0, value=15000, step=100)
-known = r3.checkbox("직전 4년 연평균을 알고 있음", value=True)
-avg4 = r3.number_input("직전 4년 연평균 (만 원)", min_value=0, value=14000, step=100, disabled=not known)
+rnd_curr = r1.number_input("당해 지출액", min_value=0, step=100, key="rc")
+rnd_prev = r2.number_input("직전 과세연도 지출액", min_value=0, step=100, key="rp")
+known = r3.checkbox("직전 4년 연평균을 알고 있음", key="known")
+avg4 = r3.number_input("직전 4년 연평균 (만 원)", min_value=0, step=100, disabled=not known, key="avg4")
 
 with st.expander("청년 등 근로자는 누구인가요?"):
     st.write("만 15~34세(병역 이행 시 최대 6년을 뺀 나이), 장애인, 계약일 현재 60세 이상, 경력단절근로자, "
@@ -154,7 +181,30 @@ if ex and ex["facts"] == facts:
     st.write(ex["text"])
     st.caption(("AI 작성" if ex["source"] == "llm" else "기본 문장") + (f" · {ex['note']}" if ex["note"] else ""))
     pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"])
-    st.download_button("1페이지 PDF 내려받기", pdf, file_name="recommendation_report.pdf", mime="application/pdf")
+    st.download_button("1페이지 PDF 내려받기", pdf, file_name="세액공제_지원사업_추천_리포트.pdf", mime="application/pdf")
 elif ex:
     st.info("입력이 바뀌었습니다. '해설 만들기'를 다시 눌러 주세요.")
 st.warning(f"{DISCLAIMER} 신고 대행·세액 확정·세무 자문이 아닙니다.")
+
+
+st.header("6. 전문가 연결 (시뮬레이션)")
+st.caption("실제로 전문가에게 전달되지 않는 시연 화면입니다. 입력한 내용은 전송하거나 저장하지 않습니다.")
+with st.expander("개인정보 안내"):
+    st.write("· 실제 서비스라면 상담 연결을 위해 이름·연락처 같은 개인정보를 받게 됩니다. 이때 수집 목적, 항목, 보관 기간을 알리고 동의를 받아야 합니다.\n"
+             "· 이 시연 화면은 어떤 정보도 서버에 보내거나 저장하지 않습니다. 실제 이름·이메일·전화번호는 입력하지 마세요.\n"
+             "· 상담은 세무 전문가가 하며, 이 서비스는 신고 대행·세액 확정·세무 자문을 하지 않습니다.")
+with st.form("expert_form"):
+    f1, f2 = st.columns(2)
+    nick = f1.text_input("회사 별칭 (가상)", placeholder="예: 가상전자")
+    mail = f2.text_input("연락받을 이메일 (가상)", placeholder="demo@example.com")
+    topic = st.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다"])
+    memo = st.text_area("전문가에게 전달할 내용", value=f"{label.split(' ', 1)[1]} / {sido} / 첫해 예상 감면액 {res['total_first_year']:,}만 원 (참고용)", height=80)
+    agree = st.checkbox("개인정보 안내를 읽었고 시연용임을 이해했습니다")
+    sent = st.form_submit_button("상담 요청 보내기 (시연)")
+if sent:
+    if not agree:
+        st.error("개인정보 안내 확인에 체크해 주세요.")
+    else:
+        st.success("시연용 요청이 접수된 것으로 표시합니다. 실제로는 아무 곳에도 전송·저장되지 않았습니다.")
+        st.write(f"**상담 분야:** {topic}  \n**전달될 내용(예시):** {memo}")
+        st.caption("실제 서비스에서는 이 화면 뒤에 세무 전문가 매칭과 일정 안내가 이어집니다.")
