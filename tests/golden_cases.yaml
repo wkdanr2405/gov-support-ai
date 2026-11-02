@@ -1,0 +1,303 @@
+# 정답 사례. 금액은 만원. 손으로 계산한 값이며 엔진 코드와 독립적이다. (2026-11-01 조문 대조 후 provisional 없음)
+# 규칙: 전체증가 = max(당해-전년,0); 청년증가 = min(max(청년_당해-청년_전년,0), 전체증가);
+#       청년외증가 = min(max((전체_당해-청년_당해)-(전체_전년-청년_전년),0), 전체증가)  [법 제29조의8 제1항 1·2호]
+# 통합고용 = 증가인원 × 연차별 단가(수도권/수도권 밖). 증가 인원은 3년간 유지된다고 가정
+# R&D: 당기분 = 당기×25%. 증가분 = (당기-직전)×50%는 직전 발생액 ≥ 직전 4년 연평균(4년 발생 있음)일 때만 가능 [법 제10조 제1항 제3호 단서]
+#      가능하면 큰 쪽, 아니면 당기분. rnd_prev4_avg가 없으면 당기분만.
+cases:
+- id: deck_demo
+  desc: 덱 시연 기업 (수도권, 10→13명, 청년 0→2, R&D 2억, 직전 1.5억)
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 13
+    youth_prev: 0
+    youth_curr: 2
+    rnd_curr: 20000
+    rnd_prev: 15000
+    rnd_prev4_avg: 14000
+  expect:
+    employment_by_year:
+    - 1800
+    - 4100
+    - 4400
+    rnd_credit: 5000
+    rnd_method: current
+- id: non_capital_same
+  desc: 같은 기업이 수도권 밖에 있는 경우
+  input:
+    region: non_capital
+    employees_prev: 10
+    employees_curr: 13
+    youth_prev: 0
+    youth_curr: 2
+    rnd_curr: 20000
+    rnd_prev: 15000
+    rnd_prev4_avg: 14000
+  expect:
+    employment_by_year:
+    - 2700
+    - 5000
+    - 5300
+    rnd_credit: 5000
+    rnd_method: current
+- id: capital_other_only
+  desc: 수도권, 청년 외 3명 증가
+  input:
+    region: capital
+    employees_prev: 5
+    employees_curr: 8
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 1200
+    - 2700
+    - 3000
+    rnd_credit: 0
+    rnd_method: none
+- id: capital_youth_only
+  desc: 수도권, 청년 3명 증가
+  input:
+    region: capital
+    employees_prev: 5
+    employees_curr: 8
+    youth_prev: 0
+    youth_curr: 3
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 2100
+    - 4800
+    - 5100
+    rnd_credit: 0
+    rnd_method: none
+- id: no_change
+  desc: 고용 변동 없음
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 2
+    youth_curr: 2
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 0
+    rnd_method: none
+- id: non_capital_youth_1
+  desc: 수도권 밖, 청년 1명 증가
+  input:
+    region: non_capital
+    employees_prev: 3
+    employees_curr: 4
+    youth_prev: 0
+    youth_curr: 1
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 1000
+    - 1900
+    - 2000
+    rnd_credit: 0
+    rnd_method: none
+- id: non_capital_other_5
+  desc: 수도권 밖, 청년 외 5명 증가
+  input:
+    region: non_capital
+    employees_prev: 20
+    employees_curr: 25
+    youth_prev: 4
+    youth_curr: 4
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 3500
+    - 6000
+    - 6500
+    rnd_credit: 0
+    rnd_method: none
+- id: capital_mixed_1_1
+  desc: 수도권, 청년 1명 + 청년 외 1명
+  input:
+    region: capital
+    employees_prev: 6
+    employees_curr: 8
+    youth_prev: 1
+    youth_curr: 2
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 1100
+    - 2500
+    - 2700
+    rnd_credit: 0
+    rnd_method: none
+- id: headcount_decrease
+  desc: 인원 감소 시 고용 공제 없음 (R&D만)
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 8
+    youth_prev: 2
+    youth_curr: 2
+    rnd_curr: 10000
+    rnd_prev: 12000
+    rnd_prev4_avg: 12000
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 2500
+    rnd_method: current
+- id: capital_large_10_10
+  desc: 수도권, 청년 10명 + 청년 외 10명
+  input:
+    region: capital
+    employees_prev: 30
+    employees_curr: 50
+    youth_prev: 5
+    youth_curr: 15
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 11000
+    - 25000
+    - 27000
+    rnd_credit: 0
+    rnd_method: none
+- id: rnd_increase_better
+  desc: R&D 증가분 방식이 유리 (당기 2억, 직전 5천만 → 증가분 7,500 > 당기분 5,000)
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 20000
+    rnd_prev: 5000
+    rnd_prev4_avg: 4000
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 7500
+    rnd_method: increase
+- id: rnd_current_better
+  desc: R&D 당기분 방식이 유리 (당기 1억, 직전 9천만 → 증가분 500 < 당기분 2,500)
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 10000
+    rnd_prev: 9000
+    rnd_prev4_avg: 9000
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 2500
+    rnd_method: current
+- id: youth_swap_cap
+  desc: 청년이 청년 외를 대체 (전체 +1, 청년 +3) → 청년 증가는 전체 증가 이내로 제한
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 11
+    youth_prev: 0
+    youth_curr: 3
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 700
+    - 1600
+    - 1700
+    rnd_credit: 0
+    rnd_method: none
+- id: youth_down_other_up
+  desc: 청년은 줄고 청년 외가 늘어난 경우 (전체 +2, 청년외 증가는 전체 증가 이내)
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 12
+    youth_prev: 5
+    youth_curr: 3
+    rnd_curr: 0
+    rnd_prev: 0
+  expect:
+    employment_by_year:
+    - 800
+    - 1800
+    - 2000
+    rnd_credit: 0
+    rnd_method: none
+- id: rnd_increase_blocked_by_avg
+  desc: 직전 과세연도 발생액이 4년 연평균보다 적으면 증가분 방식 불가 → 당기분
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 20000
+    rnd_prev: 5000
+    rnd_prev4_avg: 8000
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 5000
+    rnd_method: current
+- id: rnd_prev_zero
+  desc: 직전 과세연도 발생 없음 → 당기분만
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 10000
+    rnd_prev: 0
+    rnd_prev4_avg: 0
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 2500
+    rnd_method: current
+- id: rnd_avg_unknown
+  desc: 직전 4년 연평균을 모르면 증가분 방식을 검토할 수 없어 당기분만
+  input:
+    region: capital
+    employees_prev: 10
+    employees_curr: 10
+    youth_prev: 0
+    youth_curr: 0
+    rnd_curr: 20000
+    rnd_prev: 5000
+  expect:
+    employment_by_year:
+    - 0
+    - 0
+    - 0
+    rnd_credit: 5000
+    rnd_method: current

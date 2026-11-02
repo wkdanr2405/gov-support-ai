@@ -1,0 +1,127 @@
+# 2026년 귀속 세액공제 수치. 금액 단위: 만원.
+# verified: true  = 국가법령정보센터 조문·시행령에서 확인 (2026-11-01)
+# verified: false = 원문 확인 전 (2차 자료 또는 가정). 화면에 확정 금액처럼 표시하지 않는다.
+meta:
+  tax_year: 2026
+  checked_at: "2026-11-01"
+  note: "참고용. 최종 판단은 세무 전문가가 한다."
+
+integrated_employment:   # 통합고용세액공제
+  law_ref: "조세특례제한법 제29조의8 제1항 (시행 2026-09-18), 시행령 제26조의8"
+  verified: true
+  checked_at: "2026-11-01"
+  evidence: "국가법령정보센터 법 제29조의8·시행령 제26조의8 조회 + KPMG 2025 세제개편 요약 등 교차"
+  years: 3                       # 1차·2차·3차 연도 단가가 정해져 있음
+  # 증가 인원 1명당 금액. 리스트 = [1차연도, 2차연도, 3차연도]
+  sme:
+    capital_area:                # 수도권
+      youth_etc: [700, 1600, 1700]
+      other:     [400, 900, 1000]
+    non_capital_area:            # 수도권 밖
+      youth_etc: [1000, 1900, 2000]
+      other:     [700, 1200, 1300]
+  applies_to_tax_years:
+    value: "2026.12.31이 속하는 과세연도부터 2028.12.31이 속하는 과세연도까지"
+    law_ref: "법 제29조의8 제1항"
+    verified: true
+  increase_cap:
+    value: "청년등·청년등외 상시근로자 증가 인원은 각각 전체 상시근로자 증가 인원을 한도로 한다"
+    law_ref: "법 제29조의8 제1항 제1호·제2호"
+    verified: true
+  min_increase_required:
+    value: "중소기업은 최소고용증가인원수 요건 없음 (중견 5명, 그 외 10명 초과분만 공제)"
+    law_ref: "법 제29조의8 제1항 단서, 시행령 제26조의8 제3항"
+    verified: true
+  youth_definition:
+    value: "만 15~34세. 병역 이행자는 6년 한도로 병역 기간을 뺀 나이로 계산. 근로계약 체결 당시 34세 이하면 34세를 넘겨도 중소·중견 4년(그 외 3년) 청년으로 봄. 장애인, 계약일 현재 60세 이상, 경력단절근로자, 북한이탈주민도 청년등. 기간제·단시간·파견근로자 등은 연령 기준 청년에서 제외"
+    law_ref: "시행령 제26조의8 제4항 제1호~제5호"
+    verified: true
+  regular_worker_definition:
+    value: "근로기준법상 근로계약을 맺은 내국인. 제외: 근로기간 1년 미만, 월평균 60시간 미만 단시간근로자, 임원, 최대주주(대표자)와 그 배우자·직계존비속·친족, 원천징수·국민연금·건강보험 납부 확인이 안 되는 자"
+    law_ref: "시행령 제26조의8 제2항"
+    verified: true
+  clawback:
+    value: "상시근로자 수가 줄어도 공제액을 추징하는 규정은 현행 조문(제1항~제9항)에 없음. 개별 근로관계 종료 시 추징은 정규직 전환·육아휴직 복귀자 공제(제4·5·7항)에만 있음"
+    law_ref: "법 제29조의8"
+    verified: true
+  later_year_effect_of_decrease:
+    value: "인원이 줄면 이후 연도 공제에서 감소분만큼 빠진다고 알려져 있음 (정확한 산식은 시행령 제11조의2 제8항 준용 계산 확인 필요). 엔진은 증가 인원이 3년간 유지된다고 가정"
+    verified: false
+
+rnd_credit:              # 연구·인력개발비 세액공제
+  law_ref: "조세특례제한법 제10조 제1항 제3호 (시행 2026-09-18)"
+  verified: true
+  checked_at: "2026-11-01"
+  evidence: "국가법령정보센터 조문"
+  general_rnd:
+    sme:
+      current_rate: 0.25         # 나목 1) 당기분 방식
+      increase_rate: 0.50        # 가목 증가분 방식
+    increase_base: "해당 과세연도 발생액이 직전 과세연도 발생액을 초과하는 금액"
+    increase_requires:
+      value: "직전 4년간 발생이 있고, 직전 과세연도 발생액이 직전 4년 연평균 발생액 이상일 때만 증가분 방식 가능. 아니면 당기분 방식만 적용"
+      law_ref: "법 제10조 제1항 제3호 단서"
+      verified: true
+    choice_rule: "증가분 방식이 가능하면 두 방식 중 큰 금액을 보여 주고 방식을 표시"
+  not_modeled: ["신성장·원천기술", "국가전략기술", "최저한세", "중소기업 졸업 특례", "공제 대상 비용 범위 판단"]
+
+sme_test:                # 중소기업 판정 (중소기업기본법 시행령 제3조·별표 1, 개정 2025-10-01)
+  law_ref: "중소기업기본법 시행령 제3조 제1항, 별표 1 (조특법 시행령 제2조가 준용)"
+  verified: true
+  checked_at: "2026-11-01"
+  evidence: "국가법령정보센터 별표 1 및 시행령 제3조 (시행 2026-01-02)"
+  assets_total_limit_eok: 5000          # 자산총액 5천억원 미만
+  independence_fail_if_owned:
+    value: "자산총액 5천억원 이상 법인(외국법인 포함)이 주식등의 30% 이상을 직·간접 소유한 최다출자자인 기업은 독립성 요건 불충족"
+    law_ref: "시행령 제3조 제1항 제2호 나목"
+    verified: true
+  industries:            # limit_eok = 평균매출액등 상한(이하), 억원
+    - {code: C10, name: "식료품 제조업", limit_eok: 1200}
+    - {code: C11, name: "음료 제조업", limit_eok: 1000}
+    - {code: C12, name: "담배 제조업", limit_eok: 1000}
+    - {code: C13, name: "섬유제품 제조업(의복 제외)", limit_eok: 1000}
+    - {code: C14, name: "의복, 의복 액세서리 및 모피제품 제조업", limit_eok: 1500}
+    - {code: C15, name: "가죽, 가방 및 신발 제조업", limit_eok: 1500}
+    - {code: C16, name: "목재 및 나무제품 제조업(가구 제외)", limit_eok: 1000}
+    - {code: C17, name: "펄프, 종이 및 종이제품 제조업", limit_eok: 1800}
+    - {code: C18, name: "인쇄 및 기록매체 복제업", limit_eok: 800}
+    - {code: C19, name: "코크스, 연탄 및 석유정제품 제조업", limit_eok: 1000}
+    - {code: C20, name: "화학 물질 및 화학제품 제조업(의약품 제외)", limit_eok: 1200}
+    - {code: C21, name: "의료용 물질 및 의약품 제조업", limit_eok: 800}
+    - {code: C22, name: "고무 및 플라스틱제품 제조업", limit_eok: 1200}
+    - {code: C23, name: "비금속 광물제품 제조업", limit_eok: 800}
+    - {code: C24, name: "1차 금속 제조업", limit_eok: 1800}
+    - {code: C25, name: "금속가공제품 제조업(기계 및 가구 제외)", limit_eok: 1200}
+    - {code: C26, name: "전자부품, 컴퓨터, 영상, 음향 및 통신장비 제조업", limit_eok: 1000}
+    - {code: C27, name: "의료, 정밀, 광학기기 및 시계 제조업", limit_eok: 800}
+    - {code: C28, name: "전기장비 제조업", limit_eok: 1800}
+    - {code: C29, name: "기타 기계 및 장비 제조업", limit_eok: 1200}
+    - {code: C30, name: "자동차 및 트레일러 제조업", limit_eok: 1200}
+    - {code: C31, name: "기타 운송장비 제조업", limit_eok: 1200}
+    - {code: C32, name: "가구 제조업", limit_eok: 1500}
+    - {code: C33, name: "기타 제품 제조업", limit_eok: 1000}
+    - {code: C34, name: "산업용 기계 및 장비 수리업", limit_eok: 800}
+    - {code: A, name: "농업, 임업 및 어업", limit_eok: 1200}
+    - {code: B, name: "광업", limit_eok: 1000}
+    - {code: D, name: "전기, 가스, 증기 및 공기조절 공급업", limit_eok: 1000}
+    - {code: E, name: "수도, 하수 및 폐기물 처리, 원료 재생업(수도업 제외)", limit_eok: 800}
+    - {code: E36, name: "수도업", limit_eok: 1000}
+    - {code: F, name: "건설업", limit_eok: 1200}
+    - {code: G, name: "도매 및 소매업", limit_eok: 1200}
+    - {code: H, name: "운수 및 창고업", limit_eok: 1000}
+    - {code: I, name: "숙박 및 음식점업", limit_eok: 600}
+    - {code: J, name: "정보통신업", limit_eok: 1000}
+    - {code: K, name: "금융 및 보험업", limit_eok: 400}
+    - {code: L, name: "부동산업", limit_eok: 400}
+    - {code: M, name: "전문, 과학 및 기술 서비스업", limit_eok: 600}
+    - {code: N, name: "사업시설 관리, 사업 지원 및 임대 서비스업(임대업 제외)", limit_eok: 800}
+    - {code: N76, name: "임대업(부동산 임대업 제외)", limit_eok: 400}
+    - {code: P, name: "교육 서비스업", limit_eok: 400}
+    - {code: Q, name: "보건업 및 사회복지 서비스업", limit_eok: 600}
+    - {code: R, name: "예술, 스포츠 및 여가관련 서비스업", limit_eok: 600}
+    - {code: S, name: "수리 및 기타 개인 서비스업", limit_eok: 600}
+  unverified_parts:      # 아직 원문 확인 전. 엔진은 입력 플래그로만 받고 결과에 '미확인' 표시
+    - {item: "평균매출액등 산정(3개 사업연도 평균, 창업 직후 연환산)", verified: false}
+    - {item: "관계기업 합산 평균매출액(시행령 제7조의4)", verified: false}
+    - {item: "상호출자제한기업집단 소속 여부", verified: false}
+    - {item: "소비성 서비스업(호텔·주점 등) 제외", verified: false}

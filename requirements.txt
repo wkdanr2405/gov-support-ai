@@ -1,0 +1,10 @@
+streamlit
+pyyaml
+requests
+pandas
+python-dotenv
+anthropic
+pytest
+fastembed
+numpy
+reportlab

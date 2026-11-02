@@ -1,0 +1,402 @@
+[
+ {
+  "id": "S01",
+  "source": "sample",
+  "title": "[가상 샘플] 청년 신규채용 인건비 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "만 34세 이하 청년을 신규 채용한 중소기업에 인건비 일부를 지원합니다.",
+  "target": "중소기업",
+  "field": "인력",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-15",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S02",
+  "source": "sample",
+  "title": "[가상 샘플] 전자부품 제조기업 기술개발(R&D) 과제 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "전자·반도체 부품을 만드는 중소 제조기업의 사업화 연계 기술개발 과제를 지원합니다.",
+  "target": "제조업 중소기업",
+  "field": "기술",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-20",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S03",
+  "source": "sample",
+  "title": "[가상 샘플] 서울 초기창업기업 사업화 자금",
+  "agency": "가상기관(샘플)",
+  "summary": "업력 7년 미만 서울 소재 초기 창업기업의 시제품 제작과 판로 개척 자금을 지원합니다.",
+  "target": "서울 소재 초기창업기업",
+  "field": "창업",
+  "regions": [
+   "서울"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-30",
+  "ongoing_flag": "Y",
+  "biz_age": "3년미만,5년미만,7년미만",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S04",
+  "source": "sample",
+  "title": "[가상 샘플] 예비창업자 아이디어 사업화 패키지",
+  "agency": "가상기관(샘플)",
+  "summary": "아직 사업자등록을 하지 않은 예비창업자의 아이디어 사업화를 지원합니다.",
+  "target": "예비창업자",
+  "field": "창업",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-01",
+  "ongoing_flag": "Y",
+  "biz_age": "예비창업자",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S05",
+  "source": "sample",
+  "title": "[가상 샘플] 부산 지역 제조기업 스마트공장 구축",
+  "agency": "가상기관(샘플)",
+  "summary": "부산 소재 제조기업의 스마트공장 설비 구축을 지원합니다.",
+  "target": "부산 소재 제조기업",
+  "field": "제조",
+  "regions": [
+   "부산"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-25",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S06",
+  "source": "sample",
+  "title": "[가상 샘플] 수출 중소기업 해외 전시회 참가 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "해외 전시회 참가 부스 임차료와 운송비를 지원합니다.",
+  "target": "수출 중소기업",
+  "field": "수출",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-05",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S07",
+  "source": "sample",
+  "title": "[가상 샘플] 소상공인 점포 환경 개선 사업",
+  "agency": "가상기관(샘플)",
+  "summary": "소상공인 점포의 간판과 인테리어 개선 비용을 지원합니다.",
+  "target": "소상공인",
+  "field": "경영",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-28",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S08",
+  "source": "sample",
+  "title": "[가상 샘플] 경기 스마트제조 AI 도입 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "경기도 소재 제조기업의 인공지능 솔루션 도입 비용을 지원합니다.",
+  "target": "경기도 소재 제조기업",
+  "field": "기술",
+  "regions": [
+   "경기"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-25",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S09",
+  "source": "sample",
+  "title": "[가상 샘플] 연구개발 인력 청년 채용 연계 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "기업부설연구소를 둔 중소기업이 청년 연구개발 인력을 채용하면 인건비와 R&D 과제비를 함께 지원합니다.",
+  "target": "연구개발 투자 중소기업",
+  "field": "기술",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-20",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S10",
+  "source": "sample",
+  "title": "[가상 샘플] 시제품 제작 및 시험인증 비용 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "전자·기계 부품 중소기업의 시제품 제작비와 시험·인증 비용을 지원합니다.",
+  "target": "서울 소재 부품 제조기업",
+  "field": "기술",
+  "regions": [
+   "서울"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-18",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S11",
+  "source": "sample",
+  "title": "[가상 샘플] (마감) 중소기업 디지털 전환 바우처",
+  "agency": "가상기관(샘플)",
+  "summary": "중소기업의 디지털 전환 서비스 이용권을 지원합니다.",
+  "target": "중소기업",
+  "field": "경영",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-10-20",
+  "ongoing_flag": "N",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S12",
+  "source": "sample",
+  "title": "[가상 샘플] 중소기업 정책자금 융자 (상시 접수)",
+  "agency": "가상기관(샘플)",
+  "summary": "운전자금과 시설자금을 저금리로 융자합니다. 예산 소진 시까지 접수합니다.",
+  "target": "중소기업",
+  "field": "금융",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": null,
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S13",
+  "source": "sample",
+  "title": "[가상 샘플] 서울형 강소기업 인증 및 일자리 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "서울 소재 중소기업의 우수 일자리 창출과 인증, 채용 지원을 합니다.",
+  "target": "서울 소재 중소기업",
+  "field": "인력",
+  "regions": [
+   "서울"
+  ],
+  "start": "2026-10-01",
+  "end": "2027-01-15",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S14",
+  "source": "sample",
+  "title": "[가상 샘플] 여성기업 판로 개척 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "여성기업의 공공조달 및 온라인 판로 개척을 지원합니다.",
+  "target": "여성기업",
+  "field": "판로",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-01",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S15",
+  "source": "sample",
+  "title": "[가상 샘플] 대학 연계 산학협력 기술이전 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "대학 보유 기술을 이전받아 사업화하는 중소기업의 기술료와 시제품 비용을 지원합니다.",
+  "target": "중소기업",
+  "field": "기술",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-10",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S16",
+  "source": "sample",
+  "title": "[가상 샘플] 소재·부품·장비 국산화 기술개발",
+  "agency": "가상기관(샘플)",
+  "summary": "반도체와 전자부품 소재·부품·장비의 국산화 기술개발 과제를 지원합니다.",
+  "target": "전자부품 제조 중소기업",
+  "field": "기술",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-27",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S17",
+  "source": "sample",
+  "title": "[가상 샘플] 중소기업 에너지 효율화 설비 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "노후 설비를 고효율 설비로 교체하는 비용을 지원합니다.",
+  "target": "중소기업",
+  "field": "경영",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-12",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S18",
+  "source": "sample",
+  "title": "[가상 샘플] 인천 물류기업 자동화 설비 지원",
+  "agency": "가상기관(샘플)",
+  "summary": "인천 소재 물류기업의 자동화 설비를 지원합니다.",
+  "target": "인천 소재 물류기업",
+  "field": "물류",
+  "regions": [
+   "인천"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-30",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S19",
+  "source": "sample",
+  "title": "[가상 샘플] 중소기업 AI 데이터 바우처",
+  "agency": "가상기관(샘플)",
+  "summary": "인공지능 솔루션 도입과 데이터 구매·가공 비용을 바우처로 지원합니다.",
+  "target": "중소기업",
+  "field": "기술",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-11-29",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ },
+ {
+  "id": "S20",
+  "source": "sample",
+  "title": "[가상 샘플] 고용위기 기업 고용유지 지원금",
+  "agency": "가상기관(샘플)",
+  "summary": "매출 급감으로 고용 감축 위기에 놓인 기업의 휴업·휴직 수당을 지원합니다.",
+  "target": "고용위기 사업장",
+  "field": "인력",
+  "regions": [
+   "전국"
+  ],
+  "start": "2026-10-01",
+  "end": "2026-12-31",
+  "ongoing_flag": "Y",
+  "biz_age": "",
+  "age_limit": "",
+  "url": "",
+  "contact": "",
+  "is_sample": true
+ }
+]
