@@ -115,14 +115,18 @@ res = calculate(inp)
 
 st.subheader("세액공제 항목별 판정")
 STATUS_LABEL = {"computed": "🟢 금액 계산됨", "not_applicable": "⚪ 해당 없음 (입력 기준)", "planned": "🛠️ 준비 중"}
-for card, col in zip(res["credits"], st.columns(len(res["credits"]))):
-    with col, st.container(border=True):
-        st.markdown(f"**{card['name']}**")
-        st.caption(STATUS_LABEL[card["status"]])
-        if card["status"] == "computed":
-            st.metric("첫해 예상액", won(card["amount_first_year"]))
-        st.write(card["basis"])
-        st.caption(card["law_ref"] + ("" if card["verified"] else " · 조문 확인 전"))
+ORDER = {"computed": 0, "not_applicable": 1, "planned": 2}   # 계산된 공제를 먼저 보여준다
+cards = sorted(res["credits"], key=lambda c: ORDER[c["status"]])
+for i in range(0, len(cards), 3):
+    for card, col in zip(cards[i:i + 3], st.columns(3)):
+        with col, st.container(border=True):
+            st.markdown(f"**{card['name']}**")
+            st.caption(STATUS_LABEL[card["status"]])
+            if card["status"] == "computed":
+                st.metric("첫해 예상액", won(card["amount_first_year"]))
+            st.write(card["basis"])
+            st.caption(card["law_ref"] + ("" if card["verified"] else " · 조문 확인 전"))
+st.caption("아래 '첫해 예상 감면액'은 금액이 계산된 공제만 더한 값입니다. 최저한세, 다른 공제와의 중복 적용 배제는 반영하지 않았습니다.")
 
 m1, m2, m3 = st.columns(3)
 m1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="통합고용 1차연도 + 연구·인력개발비")

@@ -27,7 +27,7 @@ def _rnd(inp: dict, params: dict) -> dict:
             "formula": "당기분 25% 또는 증가분 50% 중 유리한 쪽", "raw": r}
     if r["method"] == "none":
         return {**base, "status": "not_applicable", "basis": r["increase_note"], "amount_first_year": 0}
-    return {**base, "status": "computed", "basis": f"{r['method']} 방식", "amount_first_year": r["amount"]}
+    return {**base, "status": "computed", "basis": {"current": "당기분 방식 (당기 지출의 25%)", "increase": "증가분 방식 (증가액의 50%)"}[r["method"]], "amount_first_year": r["amount"]}
 
 
 def _planned(credit_id: str):
