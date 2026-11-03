@@ -3,7 +3,7 @@
 ```
 [Streamlit 화면 app.py]
    │ 입력 dict
-   ├─► src/tax_engine      → 계산 결과 dict (금액은 여기서만 만든다)
+   ├─► src/tax_engine      → 계산 결과 dict (금액은 여기서만 만든다). 공제 항목은 registry.py의 모듈 목록으로 확장: 항목마다 evaluate 함수가 카드(status computed/not_applicable/planned)를 돌려준다
    ├─► src/matching        ← src/data_sources (K-Startup, 기업마당) / data/snapshots (저장본)
    │                         → 후보 공고 리스트 → LLM이 상위 N건 선별·설명
    └─► src/report          → 계산 결과 + 매칭 결과 → LLM 해설 → 화면/PDF

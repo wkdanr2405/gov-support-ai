@@ -1,7 +1,8 @@
 """Track A 규칙 엔진. 세액·금액은 이 모듈(코드)만 계산하고 LLM은 숫자를 만들거나 바꾸지 않는다."""
-from .employment import employment_credit, headcount_increases
+from .employment import employment_credit, headcount_increases  # noqa: F401 (기존 import 호환)
 from .params import load_params
-from .rnd import rnd_credit
+from .registry import evaluate_all
+from .rnd import rnd_credit  # noqa: F401
 from .sme import industry_list, judge_sme
 
 __all__ = ["calculate", "scenario", "judge_sme", "industry_list", "load_params"]
@@ -16,16 +17,13 @@ def calculate(inp: dict, year: int = 2026) -> dict:
          rnd_curr, rnd_prev(선택), rnd_prev4_avg(선택)
     """
     params = load_params(year)
-    inc = headcount_increases(inp["employees_prev"], inp["employees_curr"], inp["youth_prev"], inp["youth_curr"])
-    by_year = employment_credit(inp["region"], inc, params)
-    rnd = rnd_credit(inp.get("rnd_curr", 0), inp.get("rnd_prev", 0), inp.get("rnd_prev4_avg"), params)
-    ie, rc = params["integrated_employment"], params["rnd_credit"]
+    cards = evaluate_all(inp, params)
+    emp, rd = cards[0], cards[1]
+    inc, by_year, rnd = emp["raw"]["increases"], emp["raw"]["by_year"], rd["raw"]
     items = [
-        {"name": "통합고용세액공제", "basis": f"청년등 {inc['youth']}명, 청년 외 {inc['other']}명 증가",
-         "formula": "증가 인원 × 연차별 1인당 금액", "amount_by_year": by_year,
-         "law_ref": ie["law_ref"], "verified": ie["verified"]},
-        {"name": "연구·인력개발비 세액공제", "basis": f"{rnd['method']} 방식", "formula": "당기분 25% 또는 증가분 50% 중 유리한 쪽",
-         "amount": rnd["amount"], "law_ref": rc["law_ref"], "verified": rc["verified"]},
+        {k: v for k, v in c.items() if k not in ("raw", "status", "amount_first_year", "id")}
+        | ({"amount_by_year": c["amount_by_year"]} if "amount_by_year" in c else {"amount": c["amount_first_year"]})
+        for c in cards[:2]
     ]
     notes = [
         "증가한 상시근로자가 3년간 유지된다고 가정합니다.",
@@ -44,6 +42,7 @@ def calculate(inp: dict, year: int = 2026) -> dict:
         "total_first_year": by_year[0] + rnd["amount"],
         "total_employment_3y": sum(by_year),
         "items": items,
+        "credits": cards,
         "notes": notes,
         "tax_year": year,
     }

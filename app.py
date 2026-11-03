@@ -113,6 +113,17 @@ if known:
     inp["rnd_prev4_avg"] = avg4
 res = calculate(inp)
 
+st.subheader("세액공제 항목별 판정")
+STATUS_LABEL = {"computed": "🟢 금액 계산됨", "not_applicable": "⚪ 해당 없음 (입력 기준)", "planned": "🛠️ 준비 중"}
+for card, col in zip(res["credits"], st.columns(len(res["credits"]))):
+    with col, st.container(border=True):
+        st.markdown(f"**{card['name']}**")
+        st.caption(STATUS_LABEL[card["status"]])
+        if card["status"] == "computed":
+            st.metric("첫해 예상액", won(card["amount_first_year"]))
+        st.write(card["basis"])
+        st.caption(card["law_ref"] + ("" if card["verified"] else " · 조문 확인 전"))
+
 m1, m2, m3 = st.columns(3)
 m1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="통합고용 1차연도 + 연구·인력개발비")
 m2.metric("통합고용 3년 합계", won(res["total_employment_3y"]))
