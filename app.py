@@ -32,7 +32,7 @@ DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합
 
 st.set_page_config(page_title="AI 정부지원금 & 세액공제 추천", page_icon="📊", layout="wide")
 st.markdown("""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Bebas+Neue&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 /* 디자인 규칙 (docs/09-design-system.md): 검정·흰색·옅은 회색만 쓰고, 버튼은 알약 모양, 카드는 평평하게(그림자 없음) */
 :root {--ink:#111111; --cloud:#f5f5f5; --hair:#cacacb; --mute:#707072; --success:#007d48; --sale:#d30005;}
 .stApp, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp p, .stApp label, .stApp li,
@@ -42,10 +42,11 @@ st.markdown("""<style>
 /* 맨 위 안내 띠: 사진 없이 큰 글자만 (검정 바탕에 흰 글자) */
 .hero {background: var(--ink); color: #fff; padding: 40px 32px 32px; margin-bottom: 16px;}
 .hero .kicker {font-size: 0.8rem; font-weight: 500; letter-spacing: 0.04em; color: #9e9ea0; margin-bottom: 12px;}
-.hero h1 {color:#fff !important; font-size: 3rem !important; font-weight: 700 !important; line-height: 1.05 !important;
-  letter-spacing: -0.02em; margin: 0 0 16px 0; padding: 0;}
+/* 큰 글자 단계: 원본의 전용 글꼴(Futura ND) 대신 가이드가 권하는 대체 글꼴(Bebas Neue)을 쓰고, 한글은 Noto Sans KR 굵게 */
+.hero h1 {color:#fff !important; font-family: "Bebas Neue", "Noto Sans KR", sans-serif !important; font-size: 3.4rem !important; font-weight: 900 !important;
+  line-height: 1.02 !important; letter-spacing: -0.005em; margin: 0 0 16px 0; padding: 0;}
 .hero .sub {font-size: 1rem; color: #e5e5e5; line-height: 1.6; max-width: 640px;}
-@media (max-width: 640px) {.hero {padding: 28px 20px 22px;} .hero h1 {font-size: 2.1rem !important;}}
+@media (max-width: 640px) {.hero {padding: 28px 20px 22px;} .hero h1 {font-size: 2.4rem !important;}}
 h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: -0.01em; margin-top: 32px !important;}
 /* 평평한 카드: 모서리 직각, 그림자 없음, 머리카락 두께 선 */
 [data-testid="stVerticalBlock"] {border-radius: 0 !important; border-color: var(--hair) !important; box-shadow: none !important;}
