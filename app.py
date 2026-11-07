@@ -21,6 +21,7 @@ from src.data_sources import load_announcements
 from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
+from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_pdf
 
@@ -290,6 +291,14 @@ with r_match:
 with r_report:
     st.caption("숫자는 규칙 엔진이 계산한 값만 쓰고, 해설 문장은 AI(Claude)가 씁니다. API 키가 없거나 검증에 실패하면 기본 문장을 씁니다.")
     facts = build_facts(label.split(" ", 1)[1], inp, res, out["items"], sido)
+    docs = required_documents(res)
+    with st.expander("신청·신고 때 준비할 서류 (참고)", expanded=True):
+        st.caption(DOCS_NOTICE)
+        for d in docs:
+            st.markdown(f"**{d['name']}** · {d['timing']}")
+            st.write("\n".join("· " + x for x in d["documents"]))
+        if not docs:
+            st.write("금액이 계산된 공제·감면이 없어 안내할 서류가 없습니다.")
     if st.button("해설 만들기"):
         with st.spinner("해설을 만드는 중입니다"):
             st.session_state["explain"] = {"facts": facts, **explain(facts)}
@@ -297,7 +306,7 @@ with r_report:
     if ex and ex["facts"] == facts:
         st.write(ex["text"])
         st.caption(("AI 작성" if ex["source"] == "llm" else "기본 문장") + (f" · {ex['note']}" if ex["note"] else ""))
-        pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"])
+        pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"], docs=docs)
         st.download_button("1페이지 PDF 내려받기", pdf, file_name="세액공제_지원사업_추천_리포트.pdf", mime="application/pdf")
     elif ex:
         st.info("입력이 바뀌었습니다. '해설 만들기'를 다시 눌러 주세요.")

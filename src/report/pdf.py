@@ -11,6 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .docs import NOTICE
 from .explain import DISCLAIMER
 
 FONT = Path(__file__).resolve().parents[2] / "assets" / "fonts" / "NanumGothic-Regular.ttf"
@@ -29,7 +30,8 @@ def _esc(t: str) -> str:
     return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template") -> bytes:
+def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template",
+              docs: list[dict] | None = None) -> bytes:
     f = _font()
     st = lambda size, lead=None, **kw: ParagraphStyle("s", fontName=f, fontSize=size, leading=lead or size * 1.45, **kw)
     buf = BytesIO()
@@ -40,10 +42,10 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
              Paragraph(f"가상 기업 기준 예시 · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(8, textColor=colors.grey)),
              Spacer(1, 4 * mm)]
 
-    def table(rows, widths, head=True):
-        t = Table([[Paragraph(_esc(x), st(8.5)) for x in r] for r in rows], colWidths=widths)
+    def table(rows, widths, head=True, size=8.5, pad=3):
+        t = Table([[Paragraph(_esc(x), st(size)) for x in r] for r in rows], colWidths=widths)
         style = [("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#c8d0da")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                 ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]
+                 ("TOPPADDING", (0, 0), (-1, -1), pad), ("BOTTOMPADDING", (0, 0), (-1, -1), pad)]
         if head:
             style.append(("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef6")))
         t.setStyle(TableStyle(style))
@@ -67,7 +69,13 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
     if len(rows) == 1:
         rows.append(["조건에 맞는 후보 없음", "-", "-"])
     story += [Paragraph("3. 추천 정부지원사업 Top 3", st(11)), Spacer(1, 1.5 * mm), table(rows, [100 * mm, 36 * mm, 42 * mm]),
-              Spacer(1, 4 * mm), Paragraph("4. 해설", st(11)), Spacer(1, 1.5 * mm)]
+              Spacer(1, 4 * mm)]
+    if docs:
+        story += [Paragraph("4. 신청·신고 때 준비할 서류 (참고)", st(11)), Spacer(1, 1.5 * mm),
+                  table([["공제·감면", "준비 서류", "시기"]] + [[d["name"], "; ".join(d["documents"]), d["timing"]] for d in docs],
+                        [27 * mm, 108 * mm, 43 * mm], size=7, pad=1.5),
+                  Paragraph(_esc(NOTICE), st(7.5, 11, textColor=colors.HexColor("#444444"))), Spacer(1, 4 * mm)]
+    story += [Paragraph("5. 해설" if docs else "4. 해설", st(11)), Spacer(1, 1.5 * mm)]
     for para in explanation.split("\n"):
         if para.strip():
             story.append(Paragraph(_esc(para), st(9.5, 15)))
