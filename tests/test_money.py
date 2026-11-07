@@ -33,3 +33,10 @@ def test_conversions_keep_exact_value():
     assert won_to_man(12345) == 1.2345
     assert won_to_eok(3000000000) == 30 and isinstance(won_to_eok(3000000000), int)
     assert won_to_eok(150000000) == 1.5
+
+
+def test_result_amounts_shown_in_won():
+    from src.money import man_to_won, won_text
+    assert won_text(6800) == "68,000,000원"
+    assert won_text(0) == "0원"
+    assert man_to_won(1800) == 18_000_000

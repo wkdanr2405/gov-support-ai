@@ -15,7 +15,7 @@ def run():
 def test_app_runs_without_error():
     at = run()
     assert not at.exception
-    assert any("6,800만 원" in m.value for m in at.metric) or any("6,800" in str(m.value) for m in at.metric)
+    assert any("68,000,000원" in m.value for m in at.metric) or any("6,800" in str(m.value) for m in at.metric)
 
 
 def test_preset_changes_inputs_and_region_rules():
@@ -43,9 +43,9 @@ def test_disaster_preset_shows_credit_and_total():
     at.selectbox(key="preset").select("④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공제 시연)").run()
     assert not at.exception
     assert at.text_input(key="dl").value == "160,000,000"
-    # (미납 3,000 + 올해 2,000-감면 500) × 40% = 1,800만 원 → 첫해 합계 6,800 + 1,800
-    assert any("8,600만 원" in str(m.value) for m in at.metric)
-    assert any("1,800만 원" in str(m.value) for m in at.metric)
+    # (미납 3,000만 + 올해 2,000만-감면 500만) × 40% = 1,800만 원(18,000,000원) → 첫해 합계 6,800만 + 1,800만 원
+    assert any("86,000,000원" in str(m.value) for m in at.metric)
+    assert any("18,000,000원" in str(m.value) for m in at.metric)
 
 
 def test_disaster_input_error_when_lost_exceeds_total():
@@ -59,10 +59,10 @@ def test_overlap_presets_pick_the_better_combination():
     at.selectbox(key="preset").select("③ 경기 소프트웨어 (설립 2년, 급성장)").run()
     assert not at.exception
     # ③: 통합고용 2,800 + 특별감면 160(소기업 수도권 20% × 800) > 창업감면 800 → 합계 2,800 + 160 + R&D 1,500
-    assert any("4,460만 원" in str(m.value) for m in at.metric)
+    assert any("44,600,000원" in str(m.value) for m in at.metric)
     assert any("합계에서 제외" in w.value for w in at.warning)
     at.selectbox(key="preset").select("⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)").run()
     assert not at.exception
     # ⑤: 창업감면 4,000(비수도권 청년 100%) > 통합고용 2,700 + 특별감면 1,200 → 합계 4,000 + R&D 5,000
-    assert any("9,000만 원" in str(m.value) for m in at.metric)
+    assert any("90,000,000원" in str(m.value) for m in at.metric)
     assert at.text_input(key="ct").value == "40,000,000"

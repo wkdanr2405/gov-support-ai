@@ -16,22 +16,22 @@ class FakeClient:
 
 def test_template_uses_engine_numbers():
     t = template_text(FACTS)
-    assert "6,800만 원" in t and "1,800만 원" in t and "5,000만 원" in t
+    assert "68,000,000원" in t and "18,000,000원" in t and "50,000,000원" in t
 
 
 def test_good_llm_text_passes():
-    ok = "첫해 예상 공제액은 6,800만 원입니다. 기술개발 지원사업(D-18)을 확인해 보세요."
+    ok = "첫해 예상 공제액은 68,000,000원입니다. 기술개발 지원사업(D-18)을 확인해 보세요."
     r = explain(FACTS, client=FakeClient(ok))
     assert r["source"] == "llm" and r["text"] == ok
 
 
 def test_invented_number_falls_back():
-    r = explain(FACTS, client=FakeClient("첫해 예상 공제액은 9,999만 원입니다."))
+    r = explain(FACTS, client=FakeClient("첫해 예상 공제액은 99,990,000원입니다."))
     assert r["source"] == "template" and "근거 없는 숫자" in r["note"]
 
 
 def test_forbidden_phrase_falls_back():
-    assert validate("세무 자문을 대신해 드립니다. 6800만 원", FACTS)
+    assert validate("세무 자문을 대신해 드립니다. 68000000원", FACTS)
 
 
 def test_no_key_uses_template(monkeypatch):

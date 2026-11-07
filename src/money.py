@@ -35,6 +35,16 @@ def kor_unit(n: int) -> str:
     return text + ("원" if rest else " 원")
 
 
+def man_to_won(n) -> int:
+    """엔진 결과(만원) → 원."""
+    return int(round(n * 10 ** 4))
+
+
+def won_text(man) -> str:
+    """엔진 결과(만원)를 '68,000,000원' 모양으로."""
+    return f"{man_to_won(man):,}원"
+
+
 def won_to_man(n: int):
     """원 → 만원. 딱 떨어지면 정수, 아니면 소수(엔진이 만원 미만을 절사한다)."""
     return n // 10 ** 4 if n % 10 ** 4 == 0 else n / 10 ** 4

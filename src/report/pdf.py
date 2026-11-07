@@ -35,7 +35,7 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=12 * mm,
                             title="세액공제·정부지원사업 추천 리포트", author="AI 정부지원금 & 세액공제 추천 서비스")
-    c = facts["세액공제(만원)"]
+    c = facts["세액공제(원)"]
     story = [Paragraph("세액공제·정부지원사업 추천 리포트", st(17, textColor=colors.HexColor("#14365d"))),
              Paragraph(f"가상 기업 기준 예시 · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(8, textColor=colors.grey)),
              Spacer(1, 4 * mm)]
@@ -54,7 +54,7 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
                      ["늘어난 상시근로자", f"청년 등 {facts['인원']['증가 청년']}명, 청년 외 {facts['인원']['증가 청년외']}명"]],
                     [38 * mm, 140 * mm], head=False), Spacer(1, 4 * mm)]
     yr = c["통합고용 연차별"]
-    story += [Paragraph("2. 세액공제 예상액 (단위: 만 원)", st(11)), Spacer(1, 1.5 * mm),
+    story += [Paragraph("2. 세액공제 예상액 (단위: 원)", st(11)), Spacer(1, 1.5 * mm),
               table([["구분", "금액"], ["첫해 합계 (금액이 계산된 공제의 합)", f"{c['첫해 합계']:,}"],
                      ["통합고용세액공제 연차별", " / ".join(f"{i+1}차 {v:,}" for i, v in enumerate(yr))],
                      ["통합고용 3년 합계", f"{c['통합고용 3년 합계']:,}"], ["연구·인력개발비 세액공제", f"{c['연구인력개발비']:,}"]]

@@ -80,9 +80,9 @@ def _resolve_overlaps(cards: list[dict]) -> str:
                        (sp, "창업감면과 특별감면은 하나만 선택합니다 (제127조)")):
             if c["status"] == "computed":
                 c["in_total"], c["excluded_reason"] = False, why
-        return f"중복 적용 배제: 창업감면({b:,}만 원)이 통합고용+특별감면({a:,}만 원)보다 커서 창업감면을 선택한 것으로 계산했습니다."
+        return f"중복 적용 배제: 창업감면({b*10000:,}원)이 통합고용+특별감면({a*10000:,}원)보다 커서 창업감면을 선택한 것으로 계산했습니다."
     su["in_total"], su["excluded_reason"] = False, "특별감면과 통합고용 조합이 더 유리해 이쪽은 선택하지 않은 것으로 계산했습니다 (제127조)"
-    return f"중복 적용 배제: 통합고용+특별감면({a:,}만 원)이 창업감면({b:,}만 원) 이상이라 이 조합을 선택한 것으로 계산했습니다."
+    return f"중복 적용 배제: 통합고용+특별감면({a*10000:,}원)이 창업감면({b*10000:,}원) 이상이라 이 조합을 선택한 것으로 계산했습니다."
 
 
 def evaluate_all(inp: dict, params: dict, tax_year: int = 2026) -> tuple[list[dict], str]:

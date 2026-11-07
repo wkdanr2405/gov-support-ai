@@ -16,18 +16,23 @@ SYSTEM = (
     "당신은 중소기업 대표에게 세액공제 예상치와 정부지원사업 추천 결과를 쉬운 말로 설명하는 도우미입니다.\n"
     "규칙: 1) 제공된 JSON의 숫자만 사용하고 새 숫자를 만들거나 계산하지 마세요. 2) '신고 대행', '세액 확정', '세무 자문' 같은 표현과 "
     "'받을 수 있습니다'처럼 확정하는 표현을 쓰지 마세요('예상', '가능성'으로 쓰세요). 3) 공고 신청 자격은 원문 확인이 필요하다고 안내하세요. "
-    "4) 4~6문장, 문단 2개 이내, 마크다운 기호 없이 쓰세요."
+    "4) 금액은 제공된 원 단위 숫자를 쉼표 포함 그대로 '68,000,000원'처럼 쓰고 만원·억 단위로 바꾸지 마세요. 5) 4~6문장, 문단 2개 이내, 마크다운 기호 없이 쓰세요."
 )
+
+
+def _w(man) -> int:
+    """엔진 결과(만원) → 원. 해설과 리포트에는 원 단위 숫자만 쓴다."""
+    return int(round(man * 10 ** 4))
 
 
 def build_facts(profile_name: str, inputs: dict, res: dict, matches: list[dict], sido: str) -> dict:
     return {
         "기업": {"업종": profile_name, "소재지": sido, "수도권": "예" if inputs["region"] == "capital" else "아니오"},
         "인원": {"증가 청년": res["increases"]["youth"], "증가 청년외": res["increases"]["other"]},
-        "세액공제(만원)": {"첫해 합계": res["total_first_year"], "통합고용 연차별": res["employment_by_year"],
-                      "통합고용 3년 합계": res["total_employment_3y"], "연구인력개발비": res["rnd_credit"],
-                      "재해손실세액공제": res.get("disaster_credit", 0),
-                      **{c["name"]: c["amount_first_year"] for c in res.get("credits", [])
+        "세액공제(원)": {"첫해 합계": _w(res["total_first_year"]), "통합고용 연차별": [_w(v) for v in res["employment_by_year"]],
+                      "통합고용 3년 합계": _w(res["total_employment_3y"]), "연구인력개발비": _w(res["rnd_credit"]),
+                      "재해손실세액공제": _w(res.get("disaster_credit", 0)),
+                      **{c["name"]: _w(c["amount_first_year"]) for c in res.get("credits", [])
                          if c["id"] in ("startup_sme_exemption", "sme_special_reduction") and c.get("in_total")},
                       "중복 배제 안내": res.get("overlap_note", "")},
         "추천공고": [{"제목": m["title"], "마감": "상시/확인 필요" if m["d_day"] is None else f"D-{m['d_day']}",
@@ -61,12 +66,12 @@ def _short(title: str, n: int = 30) -> str:
 
 
 def template_text(facts: dict) -> str:
-    c = facts["세액공제(만원)"]
-    lines = [f"입력하신 조건 기준으로 첫해 세액공제 예상액은 약 {c['첫해 합계']:,}만 원입니다. "
-             f"이 중 통합고용세액공제는 연차별로 {', '.join(f'{v:,}만 원' for v in c['통합고용 연차별'])}이고, "
-             f"연구·인력개발비 세액공제는 {c['연구인력개발비']:,}만 원으로 계산되었습니다."
-             + "".join(f" {n}은(는) {c[n]:,}만 원으로 예상됩니다." for n in ("창업중소기업 세액감면", "중소기업 특별세액감면") if c.get(n))
-             + (f" 재해손실세액공제는 {c['재해손실세액공제']:,}만 원으로 예상됩니다(세무서장의 인정이 필요합니다)." if c.get("재해손실세액공제") else "")]
+    c = facts["세액공제(원)"]
+    lines = [f"입력하신 조건 기준으로 첫해 세액공제 예상액은 약 {c['첫해 합계']:,}원입니다. "
+             f"이 중 통합고용세액공제는 연차별로 {', '.join(f'{v:,}원' for v in c['통합고용 연차별'])}이고, "
+             f"연구·인력개발비 세액공제는 {c['연구인력개발비']:,}원으로 계산되었습니다."
+             + "".join(f" {n}은(는) {c[n]:,}원으로 예상됩니다." for n in ("창업중소기업 세액감면", "중소기업 특별세액감면") if c.get(n))
+             + (f" 재해손실세액공제는 {c['재해손실세액공제']:,}원으로 예상됩니다(세무서장의 인정이 필요합니다)." if c.get("재해손실세액공제") else "")]
     if c.get("중복 배제 안내"):
         lines.append(c["중복 배제 안내"])
     recs = facts["추천공고"]

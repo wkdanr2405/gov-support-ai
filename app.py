@@ -20,7 +20,7 @@ except Exception:
 from src.data_sources import load_announcements
 from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.matching import Embedder, build_profile, match
-from src.money import fmt_won, kor_unit, parse_won, won_to_eok, won_to_man
+from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_pdf
 
@@ -41,7 +41,7 @@ st.title("AI 정부지원금 & 세액공제 맞춤형 추천 서비스")
 st.caption("기업 정보를 넣으면 ① 세액공제·감면 예상액 ② 맞는 정부지원사업 ③ 1페이지 리포트를 만들어 줍니다. "
            f"시연용 프로토타입 · 가상 기업 데이터 기준 예시 · {DISCLAIMER}")
 
-won = lambda v: f"{v:,}만 원"
+won = won_text   # 엔진 결과(만원)를 화면에는 원 단위로 보여 준다
 
 industries = industry_list()
 labels = {f"{i['code']} {i['name']}": i["code"] for i in industries}
@@ -224,6 +224,7 @@ with r_tax:
                 st.caption(STATUS_LABEL[card["status"]])
                 if card["status"] == "computed":
                     st.metric("첫해 예상액", won(card["amount_first_year"]))
+                    st.caption("= " + kor_unit(man_to_won(card["amount_first_year"])))
                 st.write(card["basis"])
                 if card["status"] == "computed" and not card["in_total"]:
                     st.warning("합계에서 제외: " + card["excluded_reason"])
@@ -237,9 +238,9 @@ with r_tax:
         st.dataframe(pd.DataFrame({"구분": ["통합고용세액공제"], **{f"{i+1}차연도": [won(v)] for i, v in enumerate(res["employment_by_year"])}}),
                      hide_index=True, width="stretch")
         sc = scenario(inp)
-        df = pd.DataFrame({f"{r['extra_youth']}명 추가": r["employment_by_year"] for r in sc}, index=["1차연도", "2차연도", "3차연도"]).T
+        df = pd.DataFrame({f"{r['extra_youth']}명 추가": r["employment_by_year"] for r in sc}, index=["1차연도", "2차연도", "3차연도"]).T * 10 ** 4
         st.bar_chart(df)
-        st.caption("단위: 만 원. 막대는 청년을 더 채용했을 때 연차별 공제액입니다.")
+        st.caption("단위: 원. 막대는 청년을 더 채용했을 때 연차별 공제액입니다.")
     with st.expander("계산 가정과 한계"):
         for n in res["notes"]:
             st.write("· " + n)
@@ -313,7 +314,7 @@ with r_expert:
         nick = f1.text_input("회사 별칭 (가상)", placeholder="예: 가상전자")
         mail = f2.text_input("연락받을 이메일 (가상)", placeholder="demo@example.com")
         topic = st.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다"])
-        memo = st.text_area("전문가에게 전달할 내용", value=f"{label.split(' ', 1)[1]} / {sido} / 첫해 예상 감면액 {res['total_first_year']:,}만 원 (참고용)", height=80)
+        memo = st.text_area("전문가에게 전달할 내용", value=f"{label.split(' ', 1)[1]} / {sido} / 첫해 예상 감면액 {won(res['total_first_year'])} (참고용)", height=80)
         agree = st.checkbox("개인정보 안내를 읽었고 시연용임을 이해했습니다")
         sent = st.form_submit_button("상담 요청 보내기 (시연)")
     if sent:
@@ -329,7 +330,7 @@ with summary:
     n_done = sum(1 for c in res["credits"] if c["status"] == "computed")
     with st.container(border=True):
         s1, s2, s3, s4 = st.columns(4)
-        s1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="계산된 공제·감면 중 중복 배제에서 제외되지 않은 항목의 합")
+        s1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="계산된 공제·감면 중 중복 배제에서 제외되지 않은 항목의 합 · " + "= " + kor_unit(man_to_won(res["total_first_year"])))
         s2.metric("금액이 계산된 항목", f"{n_done}개 / {len(res['credits'])}개", help="통합고용·연구개발비·재해손실·창업감면·특별감면")
         s3.metric("중소기업 판정", "해당" if sme["is_sme"] else "확인 필요")
         s4.metric("추천 공고", f"{len(out['items'])}건", help="조건에 맞는 공고 중 점수가 높은 순서")
