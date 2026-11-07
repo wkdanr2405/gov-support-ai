@@ -100,3 +100,14 @@ def test_recommendations_are_ten_and_paged_by_four():
     assert len(at.radio(key="match_page").options) == 3
     at.radio(key="match_page").set_value(3).run()
     assert not at.exception and "3/3쪽" in str(page()[0].value)
+
+
+def test_expert_tab_ranks_picks_and_shows_receipt():
+    at = demo()
+    assert at.radio(key="expert_pick").options[0] == "가상 전문가 A"      # ① 예시는 R&D·고용 공제 → A가 맨 앞
+    at.radio(key="expert_pick").set_value("가상 전문가 C").run()
+    at.checkbox[-1].check()
+    at.button[-1].click().run()
+    assert not at.exception
+    text = " ".join(str(m.value) for m in at.markdown)
+    assert "DEMO-" in text and "가상 전문가 C" in text and "요청 접수" in text

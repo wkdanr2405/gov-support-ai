@@ -1,0 +1,27 @@
+# 가상 전문가 후보 (시연용). 실제 인물·사무소가 아니다. 이름은 모두 지어낸 것이며 화면에 "가상"이라고 표시한다.
+# specialties: 공제·감면 id (src/tax_engine/registry.py)와 gov_support(정부지원사업 신청 준비)
+experts:
+  - id: demo-a
+    name: "가상 전문가 A"
+    firm: "가상 세무회계 (연구개발 전문)"
+    years: 12
+    regions: ["전국"]
+    channels: ["화상", "전화"]
+    specialties: ["rnd_credit", "integrated_employment"]
+    intro: "연구·인력개발비 명세서 작성 경험이 많은 가상 세무 전문가입니다."
+  - id: demo-b
+    name: "가상 전문가 B"
+    firm: "가상 조세컨설팅 (감면·재해 전문)"
+    years: 9
+    regions: ["수도권", "충청권"]
+    channels: ["화상", "방문"]
+    specialties: ["startup_sme_exemption", "sme_special_reduction", "disaster_loss"]
+    intro: "창업·중소기업 감면과 재해손실 공제 검토 경험이 있는 가상 세무 전문가입니다."
+  - id: demo-c
+    name: "가상 전문가 C"
+    firm: "가상 경영지원센터 (지원사업 전문)"
+    years: 7
+    regions: ["전국"]
+    channels: ["화상", "전화", "방문"]
+    specialties: ["gov_support", "integrated_employment"]
+    intro: "정부지원사업 신청서 준비와 고용 관련 공제를 함께 보는 가상 전문가입니다."

@@ -21,6 +21,7 @@ from src.data_sources import load_announcements
 from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
+from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_pdf
@@ -77,6 +78,8 @@ h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: -
 /* 펼침 상자와 표 */
 [data-testid="stExpander"] {border-radius: 0 !important; border-color: var(--hair) !important;}
 [data-testid="stExpander"] details {border-radius: 0 !important;}
+[data-testid="stExpander"] summary, [data-testid="stForm"] {border-radius: 0 !important;}
+[data-testid="stForm"] {border-color: var(--hair) !important;}
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {color: var(--mute) !important; opacity: 1 !important;}
 .ok {color: var(--success); font-weight: 500;} .na {color: var(--mute);}
 </style>""", unsafe_allow_html=True)
@@ -388,26 +391,62 @@ with r_report:
 
 # ---------- 전문가 연결 ----------
 with r_expert:
-    st.caption("실제로 전문가에게 전달되지 않는 시연 화면입니다. 입력한 내용은 전송하거나 저장하지 않습니다.")
+    st.caption("가상 전문가와 연결되는 시연 화면입니다. 입력한 내용은 어디에도 전송하거나 저장하지 않습니다.")
     with st.expander("개인정보 안내"):
         st.write("· 실제 서비스라면 상담 연결을 위해 이름·연락처 같은 개인정보를 받게 됩니다. 이때 수집 목적, 항목, 보관 기간을 알리고 동의를 받아야 합니다.\n"
                  "· 이 시연 화면은 어떤 정보도 서버에 보내거나 저장하지 않습니다. 실제 이름·이메일·전화번호는 입력하지 마세요.\n"
                  "· 상담은 세무 전문가가 하며, 이 서비스는 신고 대행·세액 확정·세무 자문을 하지 않습니다.")
+
+    # 1) 전문가 고르기: 합계에 들어간 공제·감면과 분야가 겹치는 순서로 보여 준다
+    st.markdown("**1. 전문가 고르기** (가상 전문가)")
+    in_total_ids = [c["id"] for c in res["credits"] if c["status"] == "computed" and c.get("in_total")]
+    experts = rank_experts(load_experts(), in_total_ids)
+    for e_, col in zip(experts, st.columns(len(experts))):
+        with col, st.container(border=True):
+            st.markdown(f"**{e_['name']}**")
+            st.caption(f"{e_['firm']} · 경력 {e_['years']}년")
+            st.write(e_["intro"])
+            st.caption("상담 방식: " + " · ".join(e_["channels"]) + " / 지역: " + ", ".join(e_["regions"]))
+            st.markdown(f'<span class="{"ok" if e_["reasons"] else "na"}">' +
+                        ("● 추천 이유: " + ", ".join(e_["reasons"]) if e_["reasons"] else "○ 이번 결과와 겹치는 분야 없음") + "</span>",
+                        unsafe_allow_html=True)
+    pick = st.radio("상담받을 전문가", [x["name"] for x in experts], key="expert_pick", horizontal=True)
+    chosen = next(x for x in experts if x["name"] == pick)
+
+    # 2) 상담 전달 자료: 계산 결과·준비 서류·추천 공고를 자동으로 묶는다
+    company = dict(industry=label.split(" ", 1)[1], sido=sido, founded=founded.isoformat(), is_sme=sme["is_sme"],
+                   ep=int(ep), ec=int(ec), yp=int(yp), yc=int(yc))
+    st.markdown("**2. 상담 전달 자료** (자동 작성)")
+    preview = build_brief(BASIS, company, res, docs, out["items"])
+    with st.expander("전달될 내용 미리보기", expanded=False):
+        st.text(preview)
+    st.download_button("전달 자료 내려받기 (.txt)", preview.encode("utf-8"), file_name="상담_전달_자료.txt", mime="text/plain")
+
+    # 3) 상담 요청
+    st.markdown("**3. 상담 요청** (시연)")
     with st.form("expert_form"):
         f1, f2 = st.columns(2)
         nick = f1.text_input("회사 별칭 (가상)", placeholder="예: 가상전자")
         mail = f2.text_input("연락받을 이메일 (가상)", placeholder="demo@example.com")
-        topic = st.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다"])
-        memo = st.text_area("전문가에게 전달할 내용", value=f"{label.split(' ', 1)[1]} / {sido} / 첫해 예상 감면액 {won(res['total_first_year'])} (참고용)", height=80)
+        g1, g2 = st.columns(2)
+        topic = g1.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다"])
+        channel = g2.selectbox("희망 상담 방식", chosen["channels"])
+        memo = st.text_area("추가로 전할 말", placeholder="궁금한 점이나 원하는 일정을 적어 주세요", height=80)
         agree = st.checkbox("개인정보 안내를 읽었고 시연용임을 이해했습니다")
         sent = st.form_submit_button("상담 요청 보내기 (시연)")
     if sent:
         if not agree:
             st.error("개인정보 안내 확인에 체크해 주세요.")
         else:
+            brief = build_brief(BASIS, company, res, docs, out["items"], topic=topic, memo=memo)
             st.success("시연용 요청이 접수된 것으로 표시합니다. 실제로는 아무 곳에도 전송·저장되지 않았습니다.")
-            st.write(f"**상담 분야:** {topic}  \n**전달될 내용(예시):** {memo}")
-            st.caption("실제 서비스에서는 이 화면 뒤에 세무 전문가 매칭과 일정 안내가 이어집니다.")
+            st.write(f"**접수번호(시연):** {receipt_no(brief)}  \n**전문가:** {chosen['name']} ({chosen['firm']})  \n"
+                     f"**상담 분야:** {topic} · **방식:** {channel}")
+            st.markdown("**앞으로의 진행 (시연)**")
+            st.markdown("\n".join(f"{i}. {s_}" for i, s_ in enumerate(STEPS, 1)))
+            with st.expander("전달된 것으로 표시되는 자료"):
+                st.text(brief)
+            st.caption("실제 서비스에서는 이 화면 뒤에 전문가 연결과 일정 안내가 이어집니다. 신청·신고는 전문가와 상의해 진행하세요.")
 
 # ---------- 맨 위 결과 요약 (위에서 만들어 둔 자리에 채운다) ----------
 with summary:
