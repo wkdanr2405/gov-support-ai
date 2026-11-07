@@ -66,3 +66,15 @@ def test_overlap_presets_pick_the_better_combination():
     # ⑤: 창업감면 4,000(비수도권 청년 100%) > 통합고용 2,700 + 특별감면 1,200 → 합계 4,000 + R&D 5,000
     assert any("90,000,000원" in str(m.value) for m in at.metric)
     assert at.text_input(key="ct").value == "40,000,000"
+
+
+def test_manual_entry_is_first_and_starts_blank():
+    at = run()
+    opts = at.selectbox(key="preset").options
+    assert opts[0].startswith("직접 입력") and at.selectbox(key="preset").value.startswith("①")   # 맨 위에 두되 처음엔 ①로 채워 둠
+    at.selectbox(key="preset").select(opts[0]).run()
+    assert not at.exception
+    assert at.text_input(key="rc").value == "0" and at.text_input(key="rev").value == "0"
+    assert at.number_input(key="ec").value == 0
+    at.text_input(key="rc").set_value("100,000,000").run()
+    assert not at.exception

@@ -112,6 +112,11 @@ PRESETS["④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공�
 PRESETS["⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)"] = dict(
     PRESETS[list(PRESETS)[0]], sido="대구", founded=date(2026, 3, 1), yp=0, yc=2,
     ct=4000, ip=100, fy=2026, ceo=True, sa="비수도권")
+# 직접 입력: 빈 칸에서 시작한다 (금액·인원 0). 목록 맨 위에 두고, 처음 화면은 ① 예시로 채워 둔다
+MANUAL = "직접 입력 (빈 칸에서 시작)"
+BLANK = dict(ind=industries[0]["code"], sido="서울", founded=date.today(), rev=0, assets=0, big=False, ep=0, ec=0, yp=0, yc=0,
+             rc=0, rp=0, known=False, avg4=0, ct=0, ip=100, fy=date.today().year, ceo=False, sa="수도권 과밀억제권역", **NO_DIS)
+CHOICES = {MANUAL: BLANK, **PRESETS}
 KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4",
         "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo", "sa"]
 
@@ -128,7 +133,7 @@ def state_value(p, k):
 
 
 def apply_preset():
-    p = PRESETS[st.session_state["preset"]]
+    p = CHOICES[st.session_state["preset"]]
     for k in KEYS:
         st.session_state[k] = state_value(p, k)
 
@@ -163,8 +168,8 @@ summary = st.container()     # 계산이 끝난 뒤 맨 위에 결과 요약을 
 
 st.markdown("##### 기업 정보 입력")
 with st.expander("예시 기업 불러오기 (가상 기업 5곳)"):
-    st.caption("고르면 아래 입력칸이 한 번에 채워집니다. 모두 가상 기업이며, 직접 값을 고쳐도 됩니다.")
-    st.selectbox("예시 기업", list(PRESETS), key="preset", on_change=apply_preset, label_visibility="collapsed")
+    st.caption("고르면 아래 입력칸이 한 번에 채워집니다. 모두 가상 기업이며, 직접 값을 고쳐도 됩니다. '직접 입력'을 고르면 빈 칸에서 시작합니다.")
+    st.selectbox("예시 기업", list(CHOICES), index=1, key="preset", on_change=apply_preset, label_visibility="collapsed")
 tab_a, tab_b, tab_c, tab_d = st.tabs(["기업 정보", "인력 · 연구개발비", "재해손실 (선택)", "법인세 감면 (선택)"])
 with tab_a:
     c1, c2 = st.columns(2)
