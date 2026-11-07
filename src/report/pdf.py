@@ -16,7 +16,7 @@ from .explain import DISCLAIMER
 
 FONTS = Path(__file__).resolve().parents[2] / "assets" / "fonts"
 FONT = FONTS / "NanumGothic-Regular.ttf"          # 한글 본문
-DISPLAY_FONT = FONTS / "BebasNeue-Regular.ttf"    # 큰 숫자·영문 (SIL Open Font License). 화면의 큰 글자 규칙과 맞춘다
+DISPLAY_FONT = FONTS / "DoHyeon-Regular.ttf"      # 제목·큰 숫자 (Do Hyeon, SIL Open Font License). 화면 맨 위 제목과 같은 글꼴
 INK, CLOUD, HAIR, MUTE = "#111111", "#f5f5f5", "#cacacb", "#707072"   # docs/09-design-system.md
 _registered = False
 
@@ -43,8 +43,9 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
                             title="세액공제·정부지원사업 추천 리포트", author="AI 정부지원금 & 세액공제 추천 서비스")
     c = facts["세액공제(원)"]
     W = A4[0] - 32 * mm
+    # 도현 글꼴에는 가운뎃점(·)이 없어 그 글자만 나눔고딕으로 그린다
     head = Table([[Paragraph("세액공제 · 정부지원사업", st(8, textColor=colors.HexColor("#9e9ea0")))],
-                  [Paragraph("세액공제·정부지원사업 추천 리포트", st(19, 24, textColor=colors.white))],
+                  [Paragraph('<font name="Display">세액공제</font><font name="Nanum">·</font><font name="Display">정부지원사업 추천 리포트</font>', st(21, 26, textColor=colors.white))],
                   [Paragraph(f"가상 기업 기준 예시 · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(7.5, textColor=colors.HexColor("#e5e5e5")))]],
                  colWidths=[W])
     head.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(INK)), ("LEFTPADDING", (0, 0), (-1, -1), 10),
