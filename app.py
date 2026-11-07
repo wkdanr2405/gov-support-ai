@@ -33,10 +33,10 @@ DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합
 
 st.set_page_config(page_title="AI 정부지원금 & 세액공제 추천", page_icon="📊", layout="wide")
 st.markdown("""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Do+Hyeon&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 /* 디자인 규칙 (docs/09-design-system.md, Shopifi 참고): 두 바탕을 섞지 않는다 -
    맨 위 띠만 검정(시네마틱), 작업 화면은 크림색 바탕 + 흰 카드(거래 화면). 버튼은 알약 모양만 쓴다. 연두(aloe)는 면 색으로만 쓴다 */
-:root {--night:#000000; --cream:#fbfbf5; --white:#ffffff; --ink:#000000; --hair:#e4e4e7; --shade30:#d4d4d8; --shade40:#a1a1aa; --shade50:#71717a; --shade70:#3f3f46;
+:root {--night:#000000; --cream:#fbfbf5; --white:#ffffff; --ink:#000000; --hair:#e4e4e7; --edge:#8a8a90; --shade30:#d4d4d8; --shade40:#a1a1aa; --shade50:#71717a; --shade70:#3f3f46;
        --aloe:#c1fbd4; --pistachio:#d4f9e0; --sale:#d30005;}
 .stApp {background: var(--cream);}
 .stApp, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp p, .stApp label, .stApp li,
@@ -46,13 +46,13 @@ st.markdown("""<style>
 /* 맨 위 띠: 순수 검정, 얇은(300) 큰 제목, 흰 글자 */
 .hero {background: var(--night); color: #fff; padding: 56px 40px 44px; margin-bottom: 24px; border-radius: 12px;}
 .hero .kicker {font-size: 0.75rem; font-weight: 400; letter-spacing: 0.06em; color: var(--shade40); margin-bottom: 16px;}
-.hero h1 {color:#fff !important; font-family: Inter, "Noto Sans KR", sans-serif !important; font-size: clamp(1.5rem, 5.4vw, 3.4rem) !important; font-weight: 300 !important;
-  line-height: 1.1 !important; letter-spacing: 0.02em; margin: 0 0 20px 0; padding: 0; white-space: nowrap;}
+.hero h1 {color:#fff !important; font-family: "Do Hyeon", "Noto Sans KR", sans-serif !important; font-size: clamp(1.5rem, 5.6vw, 3.4rem) !important; font-weight: 400 !important;
+  line-height: 1.1 !important; letter-spacing: 0; margin: 0 0 20px 0; padding: 0; white-space: nowrap;}
 .hero .sub {font-size: 1rem; font-weight: 400; color: var(--shade40); line-height: 1.6; text-wrap: balance; word-break: keep-all;}
 @media (max-width: 640px) {.hero {padding: 32px 22px 26px;} .hero h1 {font-size: 1.5rem !important;}}
 h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: 0.01em; margin-top: 40px !important;}
 /* 카드: 흰색 면, 모서리 12px, 연한 선, 작은 그림자를 겹친 은은한 테두리 효과 */
-[data-testid="stVerticalBlockBorderWrapper"] {background: var(--white); border: 1px solid var(--hair) !important; border-radius: 12px !important;
+[data-testid="stVerticalBlockBorderWrapper"] {background: var(--white); border: 1px solid var(--edge) !important; border-radius: 12px !important;
   box-shadow: 0 8px 8px rgba(0,0,0,0.04), 0 4px 4px rgba(0,0,0,0.04), 0 2px 2px rgba(0,0,0,0.04);}
 [data-testid="stMetricValue"] {font-size: 1.9rem; font-weight: 500;}
 [data-testid="stMetricLabel"] {color: var(--shade50);}
@@ -60,7 +60,7 @@ h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: 0
 [data-testid="stTabs"] button[role="tab"] {font-size: 1rem; font-weight: 500; color: var(--shade50);}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {color: var(--ink);}
 [data-testid="stTabs"] [data-baseweb="tab-highlight"] {background-color: var(--ink) !important; height: 2px;}
-[data-testid="stTabs"] [data-baseweb="tab-border"] {background-color: var(--hair);}
+[data-testid="stTabs"] [data-baseweb="tab-border"] {background-color: var(--edge);}
 /* 버튼: 알약만. 기본은 검정 알약(눌리면 shade-70), 내려받기·요청 보내기는 연두 알약 */
 [data-testid^="stBaseButton-"][data-testid*="econdary"], [data-testid="stBaseButton-primary"] {
   background: var(--ink) !important; color: #fff !important; border: 0 !important; border-radius: 9999px !important;
@@ -73,20 +73,26 @@ h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: 0
 [data-testid="stDownloadButton"] button:hover, [data-testid="stFormSubmitButton"] button:hover {background: #a8f5c2 !important;}
 /* 입력칸: 흰 바탕, 1px 연한 선, 모서리 8px, 선택하면 검정 선 */
 [data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"], [data-testid="stDateInput"] [data-baseweb="input"] {
-  background: var(--white) !important; border: 1px solid var(--hair) !important; border-radius: 8px !important; box-shadow: none !important;}
-[data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within, [data-baseweb="select"] > div:focus-within {border-color: var(--ink) !important;}
+  background: var(--white) !important; border: 1px solid var(--edge) !important; border-radius: 8px !important; box-shadow: none !important;}
+[data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within, [data-baseweb="select"] > div:focus-within {border-color: var(--ink) !important; box-shadow: 0 0 0 1px var(--ink) !important;}
 /* 안내 상자: 흰 면 + 연한 선, 성공은 연두 면, 오류는 빨간 줄 */
-[data-testid="stAlertContainer"] {background: var(--white) !important; color: var(--ink) !important; border: 1px solid var(--hair) !important; border-radius: 12px !important;}
+[data-testid="stAlertContainer"] {background: var(--white) !important; color: var(--ink) !important; border: 1px solid var(--edge) !important; border-radius: 12px !important;}
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) {background: var(--pistachio) !important; border-color: var(--pistachio) !important;}
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {border-left: 4px solid var(--sale) !important;}
 [data-testid="stAlert"] p, [data-testid="stAlertContainer"] p {color: var(--ink) !important;}
 /* 펼침 상자와 입력 양식 */
-[data-testid="stExpander"], [data-testid="stExpander"] details {background: var(--white) !important; border: 1px solid var(--hair) !important; border-radius: 12px !important;}
-[data-testid="stForm"] {background: var(--white) !important; border: 1px solid var(--hair) !important; border-radius: 12px !important;}
+[data-testid="stExpander"], [data-testid="stExpander"] details {background: var(--white) !important; border: 1px solid var(--edge) !important; border-radius: 12px !important;}
+[data-testid="stForm"] {background: var(--white) !important; border: 1px solid var(--edge) !important; border-radius: 12px !important;}
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {color: var(--shade50) !important; opacity: 1 !important;}
 /* 작은 알약 표시: 해당/계산됨은 연두, 나머지는 회색 */
 .ok, .na {display: inline-block; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em; padding: 4px 12px; border-radius: 9999px; color: var(--ink);}
 .ok {background: var(--aloe);} .na {background: var(--shade30);}
+/* 현재 Streamlit 구조에 맞춘 진한 테두리: 카드(테두리 있는 묶음)·입력칸·날짜칸 */
+[data-testid="stVerticalBlock"][style*="border"], [data-testid="stColumn"] [data-testid="stVerticalBlock"] {border-color: var(--edge) !important;}
+[data-testid="stTextInputRootElement"], [data-testid="stDateInputField"], [data-testid="stSelectbox"] [role="group"], [data-testid="stNumberInput"] [role="group"],
+[data-testid="stTextAreaRootElement"] {background: var(--white) !important; border: 1px solid var(--edge) !important; border-radius: 8px !important; box-shadow: none !important;}
+[data-testid="stTextInputRootElement"]:focus-within, [data-testid="stDateInputField"]:focus-within, [data-testid="stSelectbox"] [role="group"]:focus-within,
+[data-testid="stTextAreaRootElement"]:focus-within {border-color: var(--ink) !important; box-shadow: 0 0 0 1px var(--ink) !important;}
 </style>""", unsafe_allow_html=True)
 st.markdown(
     '<div class="hero"><div class="kicker">세액공제 · 정부지원사업</div>'
