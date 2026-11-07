@@ -45,7 +45,7 @@ st.markdown("""<style>
 /* 큰 글자 단계: 원본의 전용 글꼴(Futura ND) 대신 Do Hyeon(도현)을 쓴다. 한 줄로 보이도록 화면 폭에 맞춰 크기를 줄인다 */
 .hero h1 {color:#fff !important; font-family: "Do Hyeon", "Noto Sans KR", sans-serif !important; font-size: clamp(1.5rem, 5.6vw, 3.4rem) !important; font-weight: 400 !important;
   line-height: 1.1 !important; letter-spacing: 0; margin: 0 0 16px 0; padding: 0; white-space: nowrap;}
-.hero .sub {font-size: 1rem; color: #e5e5e5; line-height: 1.6; max-width: 640px;}
+.hero .sub {font-size: 1rem; color: #e5e5e5; line-height: 1.6; text-wrap: balance; word-break: keep-all;}   /* 한 줄로 두고, 좁은 화면에서 줄이 바뀌어도 '니다.'만 남지 않게 고르게 나눈다 */
 @media (max-width: 640px) {.hero {padding: 28px 20px 22px;} .hero h1 {font-size: 1.5rem !important;}}
 h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: -0.01em; margin-top: 32px !important;}
 /* 평평한 카드: 모서리 직각, 그림자 없음, 머리카락 두께 선 */
