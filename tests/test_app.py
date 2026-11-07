@@ -90,3 +90,13 @@ def test_manual_entry_is_default_and_starts_blank():
     assert at.selectbox(key="preset").value.startswith("①") and at.text_input(key="rc").value == "200,000,000"
     at.radio(key="mode").set_value("직접 입력").run()                   # 다시 직접 입력 → 빈 칸
     assert at.text_input(key="rc").value == "0"
+
+
+def test_recommendations_are_ten_and_paged_by_four():
+    at = demo()
+    assert any(m.value == "10건" for m in at.metric)
+    page = lambda: [c for c in at.get("caption") if "쪽" in str(c.value) and "건씩" in str(c.value)]
+    assert "1/3쪽" in str(page()[0].value)
+    assert len(at.radio(key="match_page").options) == 3
+    at.radio(key="match_page").set_value(3).run()
+    assert not at.exception and "3/3쪽" in str(page()[0].value)

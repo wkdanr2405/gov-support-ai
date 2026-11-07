@@ -313,6 +313,7 @@ with r_tax:
     st.caption(f"{BASIS}입니다. '첫해 예상 감면액'은 금액이 계산되고 중복 적용 배제에서 제외되지 않은 항목의 합이며, 최저한세는 반영하지 않았습니다. {DISCLAIMER}")
 
 # ---------- 지원사업 추천 ----------
+TOP_N, PAGE_SIZE = 10, 4      # 추천 10건을 한 화면에 4건씩 쪽을 넘겨 보여 준다
 with r_match:
     use_ai = st.toggle("의미 기반(임베딩) 점수 사용", value=True, help="글의 뜻이 비슷한지를 숫자로 비교합니다. 끄면 키워드 점수만 씁니다.")
 
@@ -327,11 +328,17 @@ with r_match:
     anns, src_desc = get_announcements()
     profile = build_profile(label.split(" ", 1)[1], sido, founded, int(ep), int(ec), int(yp), int(yc), float(rnd_curr))
     try:
-        out = match(profile, anns, get_embedder() if use_ai else None, top_n=5)
+        out = match(profile, anns, get_embedder() if use_ai else None, top_n=TOP_N)
     except Exception as e:  # 모델 내려받기 실패 등
         st.warning(f"의미 기반 점수를 쓸 수 없어 키워드 점수만 사용합니다. ({type(e).__name__})")
-        out = match(profile, anns, None, top_n=5)
-    for r in out["items"]:
+        out = match(profile, anns, None, top_n=TOP_N)
+    items = out["items"]
+    n_pages = max(1, -(-len(items) // PAGE_SIZE))
+    page = st.session_state.get("match_page", 1)
+    if page > n_pages:                       # 입력이 바뀌어 공고 수가 줄었으면 첫 쪽으로
+        page = st.session_state["match_page"] = 1
+    st.caption(f"조건에 맞는 공고 중 점수가 높은 {len(items)}건 · {page}/{n_pages}쪽 ({PAGE_SIZE}건씩)")
+    for r in items[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]:
         dd = "상시" if r["d_day"] is None else f"D-{r['d_day']}"
         with st.container(border=True):
             st.markdown(f"**{r['title']}**")
@@ -343,6 +350,9 @@ with r_match:
                 st.caption("⚠ " + f)
             if r["url"]:
                 st.link_button("공고 보기", r["url"])
+    if n_pages > 1:
+        st.radio("쪽 이동", list(range(1, n_pages + 1)), key="match_page", horizontal=True, label_visibility="collapsed",
+                 format_func=lambda n: f"{n}")
     st.info("공고 신청 자격은 원문 공고로 반드시 확인하세요. 추천 점수는 키워드와 의미 유사도를 섞은 상대값으로, 추천 순서를 정하는 데만 씁니다.")
     ex_ = out["excluded"]
     with st.expander("데이터 출처와 제외된 공고"):
