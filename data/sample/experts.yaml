@@ -7,7 +7,7 @@ experts:
     firm: "세무법인 새빛담 · 서울 강남"
     years: 14
     regions: ["전국"]
-    channels: ["화상", "전화"]
+    channels: ["화상", "전화", "대면"]
     specialties: ["rnd_credit", "integrated_employment"]
     intro: "연구·인력개발비 명세서와 통합고용 공제 검토를 주로 맡아 온 세무사입니다. 기술 기반 중소기업 법인세 조정이 전문입니다."
   - id: exp-2
@@ -15,7 +15,7 @@ experts:
     firm: "도원택스 세무회계 · 경기 성남"
     years: 10
     regions: ["수도권", "충청권"]
-    channels: ["화상", "방문"]
+    channels: ["화상", "대면"]
     specialties: ["startup_sme_exemption", "sme_special_reduction", "disaster_loss"]
     intro: "창업중소기업 감면과 중소기업 특별세액감면, 재해손실 공제 검토 경험이 많은 세무사입니다."
   - id: exp-3
@@ -23,6 +23,6 @@ experts:
     firm: "회계법인 누리온 · 대전"
     years: 8
     regions: ["전국"]
-    channels: ["화상", "전화", "방문"]
+    channels: ["화상", "전화", "대면"]
     specialties: ["gov_support", "integrated_employment"]
     intro: "정부지원사업 신청 준비와 재무 자료 정리, 고용 관련 공제 검토를 함께 보는 공인회계사입니다."
