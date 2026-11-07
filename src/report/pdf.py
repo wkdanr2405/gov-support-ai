@@ -35,7 +35,7 @@ def _esc(t: str) -> str:
 
 
 def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template",
-              docs: list[dict] | None = None) -> bytes:
+              docs: list[dict] | None = None, basis: str = "가상 기업 기준 예시") -> bytes:
     f = _font()
     st = lambda size, lead=None, **kw: ParagraphStyle("s", fontName=f, fontSize=size, leading=lead or size * 1.45, **kw)
     buf = BytesIO()
@@ -46,7 +46,7 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
     # 도현 글꼴에는 가운뎃점(·)이 없어 그 글자만 나눔고딕으로 그린다
     head = Table([[Paragraph("세액공제 · 정부지원사업", st(8, textColor=colors.HexColor("#9e9ea0")))],
                   [Paragraph('<font name="Display">세액공제</font><font name="Nanum">·</font><font name="Display">정부지원사업 추천 리포트</font>', st(21, 26, textColor=colors.white))],
-                  [Paragraph(f"가상 기업 기준 예시 · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(7.5, textColor=colors.HexColor("#e5e5e5")))]],
+                  [Paragraph(f"{basis} · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(7.5, textColor=colors.HexColor("#e5e5e5")))]],
                  colWidths=[W])
     head.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(INK)), ("LEFTPADDING", (0, 0), (-1, -1), 10),
                               ("TOPPADDING", (0, 0), (0, 0), 9), ("BOTTOMPADDING", (0, -1), (-1, -1), 9),

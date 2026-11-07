@@ -112,11 +112,10 @@ PRESETS["④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공�
 PRESETS["⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)"] = dict(
     PRESETS[list(PRESETS)[0]], sido="대구", founded=date(2026, 3, 1), yp=0, yc=2,
     ct=4000, ip=100, fy=2026, ceo=True, sa="비수도권")
-# 직접 입력: 빈 칸에서 시작한다 (금액·인원 0). 목록 맨 위에 두고, 처음 화면은 ① 예시로 채워 둔다
-MANUAL = "직접 입력 (빈 칸에서 시작)"
+# 직접 입력이 기본: 빈 칸에서 시작한다 (금액·인원 0). '가상 기업 시연'을 고르면 예시 기업 5곳 중에서 골라 채울 수 있다
+MODE_MANUAL, MODE_DEMO = "직접 입력", "가상 기업 시연"
 BLANK = dict(ind=industries[0]["code"], sido="서울", founded=date.today(), rev=0, assets=0, big=False, ep=0, ec=0, yp=0, yc=0,
              rc=0, rp=0, known=False, avg4=0, ct=0, ip=100, fy=date.today().year, ceo=False, sa="수도권 과밀억제권역", **NO_DIS)
-CHOICES = {MANUAL: BLANK, **PRESETS}
 KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4",
         "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo", "sa"]
 
@@ -132,10 +131,22 @@ def state_value(p, k):
     return fmt_won(int(p[k] * MONEY[k])) if k in MONEY else p[k]
 
 
-def apply_preset():
-    p = CHOICES[st.session_state["preset"]]
+def _fill(p):
     for k in KEYS:
         st.session_state[k] = state_value(p, k)
+
+
+def apply_preset():
+    _fill(PRESETS[st.session_state["preset"]])
+
+
+def apply_mode():
+    """입력 방식을 바꾸면 입력칸을 새로 채운다: 직접 입력 → 빈 칸, 가상 기업 시연 → 첫 번째 예시."""
+    if st.session_state["mode"] == MODE_MANUAL:
+        _fill(BLANK)
+    else:
+        st.session_state["preset"] = list(PRESETS)[0]
+        apply_preset()
 
 
 def normalize_money(key):
@@ -160,16 +171,19 @@ def money_input(label, key, help=None, disabled=False):
     return v
 
 
-first = PRESETS[list(PRESETS)[0]]
 for k in KEYS:
-    st.session_state.setdefault(k, state_value(first, k))
+    st.session_state.setdefault(k, state_value(BLANK, k))
 
 summary = st.container()     # 계산이 끝난 뒤 맨 위에 결과 요약을 채운다
 
 st.markdown("##### 기업 정보 입력")
-with st.expander("예시 기업 불러오기 (가상 기업 5곳)"):
-    st.caption("고르면 아래 입력칸이 한 번에 채워집니다. 모두 가상 기업이며, 직접 값을 고쳐도 됩니다. '직접 입력'을 고르면 빈 칸에서 시작합니다.")
-    st.selectbox("예시 기업", list(CHOICES), index=1, key="preset", on_change=apply_preset, label_visibility="collapsed")
+st.radio("입력 방식", [MODE_MANUAL, MODE_DEMO], key="mode", horizontal=True, on_change=apply_mode)
+BASIS = "가상 기업 기준 예시" if st.session_state["mode"] == MODE_DEMO else "입력하신 값 기준 예시"
+if st.session_state["mode"] == MODE_MANUAL:
+    st.caption("입력한 내용은 저장하지 않고 이 화면에서만 계산합니다. 공개 주소이므로 실제 기업의 민감한 정보는 넣지 마세요.")
+if st.session_state["mode"] == MODE_DEMO:
+    st.caption("가상 기업 5곳 중에서 고르면 아래 입력칸이 한 번에 채워집니다. 직접 값을 고쳐도 됩니다.")
+    st.selectbox("가상 기업", list(PRESETS), key="preset", on_change=apply_preset)
 tab_a, tab_b, tab_c, tab_d = st.tabs(["기업 정보", "인력 · 연구개발비", "재해손실 (선택)", "법인세 감면 (선택)"])
 with tab_a:
     c1, c2 = st.columns(2)
@@ -296,7 +310,7 @@ with r_tax:
     with st.expander("계산 가정과 한계"):
         for n in res["notes"]:
             st.write("· " + n)
-    st.caption(f"가상 기업 기준 예시입니다. '첫해 예상 감면액'은 금액이 계산되고 중복 적용 배제에서 제외되지 않은 항목의 합이며, 최저한세는 반영하지 않았습니다. {DISCLAIMER}")
+    st.caption(f"{BASIS}입니다. '첫해 예상 감면액'은 금액이 계산되고 중복 적용 배제에서 제외되지 않은 항목의 합이며, 최저한세는 반영하지 않았습니다. {DISCLAIMER}")
 
 # ---------- 지원사업 추천 ----------
 with r_match:
@@ -356,7 +370,7 @@ with r_report:
     if ex and ex["facts"] == facts:
         st.write(ex["text"])
         st.caption(("AI 작성" if ex["source"] == "llm" else "기본 문장") + (f" · {ex['note']}" if ex["note"] else ""))
-        pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"], docs=docs)
+        pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"], docs=docs, basis=BASIS)
         st.download_button("1페이지 PDF 내려받기", pdf, file_name="세액공제_지원사업_추천_리포트.pdf", mime="application/pdf")
     elif ex:
         st.info("입력이 바뀌었습니다. '해설 만들기'를 다시 눌러 주세요.")
@@ -394,4 +408,4 @@ with summary:
         s2.metric("금액이 계산된 항목", f"{n_done}개 / {len(res['credits'])}개", help="통합고용·연구개발비·재해손실·창업감면·특별감면")
         s3.metric("중소기업 판정", "해당" if sme["is_sme"] else "확인 필요")
         s4.metric("추천 공고", f"{len(out['items'])}건", help="조건에 맞는 공고 중 점수가 높은 순서")
-        st.caption(f"가상 기업 기준 예시 · {DISCLAIMER} 아래 탭에서 자세한 내용을 확인하세요.")
+        st.caption(f"{BASIS} · {DISCLAIMER} 아래 탭에서 자세한 내용을 확인하세요.")
