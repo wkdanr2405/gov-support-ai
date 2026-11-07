@@ -38,8 +38,7 @@ h2, h3 {letter-spacing: -0.01em;}
 [data-testid="stTabs"] button[role="tab"] {font-size: 1rem;}
 </style>""", unsafe_allow_html=True)
 st.title("AI 정부지원금 & 세액공제 맞춤형 추천 서비스")
-st.caption("기업 정보를 넣으면 ① 세액공제·감면 예상액 ② 맞는 정부지원사업 ③ 1페이지 리포트를 만들어 줍니다. "
-           f"시연용 프로토타입 · 가상 기업 데이터 기준 예시 · {DISCLAIMER}")
+st.caption("기업 정보를 넣으면 ① 세액공제·감면 예상액 ② 맞는 정부지원사업 ③ 1페이지 리포트를 만들어 줍니다.")
 
 won = won_text   # 엔진 결과(만원)를 화면에는 원 단위로 보여 준다
 
