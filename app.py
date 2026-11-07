@@ -113,11 +113,13 @@ def money_input(label, key, help=None, disabled=False):
 first = PRESETS[list(PRESETS)[0]]
 for k in KEYS:
     st.session_state.setdefault(k, state_value(first, k))
-st.selectbox("시연 시나리오 (선택하면 입력칸이 채워집니다)", list(PRESETS), key="preset", on_change=apply_preset)
 
 summary = st.container()     # 계산이 끝난 뒤 맨 위에 결과 요약을 채운다
 
 st.markdown("##### 기업 정보 입력")
+with st.expander("예시 기업 불러오기 (가상 기업 5곳)"):
+    st.caption("고르면 아래 입력칸이 한 번에 채워집니다. 모두 가상 기업이며, 직접 값을 고쳐도 됩니다.")
+    st.selectbox("예시 기업", list(PRESETS), key="preset", on_change=apply_preset, label_visibility="collapsed")
 tab_a, tab_b, tab_c, tab_d = st.tabs(["기업 정보", "인력 · 연구개발비", "재해손실 (선택)", "법인세 감면 (선택)"])
 with tab_a:
     c1, c2 = st.columns(2)
