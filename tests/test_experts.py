@@ -8,18 +8,18 @@ RES = {"total_first_year": 6800, "overlap_note": "",
 CO = dict(industry="전자부품 제조업", sido="서울", founded="2023-03-15", is_sme=True, ep=10, ec=13, yp=0, yc=2)
 
 
-def test_experts_are_marked_virtual_and_have_fields():
+def test_experts_have_required_fields():
     ex = load_experts()
     assert len(ex) == 3
     for e in ex:
-        assert e["name"].startswith("가상") and e["firm"].startswith("가상") and e["specialties"] and e["channels"]
+        assert e["name"] and e["firm"] and e["specialties"] and e["channels"] and e["intro"]
 
 
 def test_rank_puts_overlapping_specialty_first():
     r = rank_experts(load_experts(), ["rnd_credit", "integrated_employment"])
-    assert r[0]["id"] == "demo-a" and r[0]["score"] == 2 and "연구·인력개발비 공제" in r[0]["reasons"]
+    assert r[0]["id"] == "exp-1" and r[0]["score"] == 2 and "연구·인력개발비 공제" in r[0]["reasons"]
     r2 = rank_experts(load_experts(), ["startup_sme_exemption", "disaster_loss"], want_gov_support=False)
-    assert r2[0]["id"] == "demo-b"
+    assert r2[0]["id"] == "exp-2"
 
 
 def test_brief_uses_engine_amounts_in_won_and_disclaimer():

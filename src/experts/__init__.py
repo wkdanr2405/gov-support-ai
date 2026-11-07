@@ -36,7 +36,7 @@ def rank_experts(experts: list[dict], credit_ids: list[str], want_gov_support: b
 def build_brief(basis: str, company: dict, res: dict, docs: list[dict], matches: list[dict],
                 topic: str | None = None, memo: str = "") -> str:
     """전문가에게 건넬 요약 글. 금액은 엔진 결과(만원)를 원 단위로만 바꿔 옮긴다."""
-    lines = [f"[상담 전달 자료 · 시연] {basis}", "",
+    lines = [f"[상담 전달 자료] {basis}", "",
              "■ 기업 (입력값)",
              f"- 업종: {company['industry']} / 소재지: {company['sido']} / 설립: {company['founded']}",
              f"- 중소기업 판정: {'해당' if company['is_sme'] else '확인 필요'}",

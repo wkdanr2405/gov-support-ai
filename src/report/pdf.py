@@ -34,38 +34,67 @@ def _esc(t: str) -> str:
     return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template",
-              docs: list[dict] | None = None, basis: str = "가상 기업 기준 예시") -> bytes:
-    f = _font()
-    st = lambda size, lead=None, **kw: ParagraphStyle("s", fontName=f, fontSize=size, leading=lead or size * 1.45, **kw)
-    buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=10 * mm, bottomMargin=9 * mm,
-                            title="세액공제·정부지원사업 추천 리포트", author="AI 정부지원금 & 세액공제 추천 서비스")
-    c = facts["세액공제(원)"]
-    W = A4[0] - 32 * mm
-    # 도현 글꼴에는 가운뎃점(·)이 없어 그 글자만 나눔고딕으로 그린다
-    head = Table([[Paragraph("세액공제 · 정부지원사업", st(8, textColor=colors.HexColor("#9e9ea0")))],
-                  [Paragraph('<font name="Display">세액공제</font><font name="Nanum">·</font><font name="Display">정부지원사업 추천 리포트</font>', st(21, 26, textColor=colors.white))],
-                  [Paragraph(f"{basis} · 작성일 {date.today().isoformat()} · {DISCLAIMER}", st(7.5, textColor=colors.HexColor("#e5e5e5")))]],
-                 colWidths=[W])
-    head.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(INK)), ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                              ("TOPPADDING", (0, 0), (0, 0), 9), ("BOTTOMPADDING", (0, -1), (-1, -1), 9),
-                              ("TOPPADDING", (0, 1), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -2), 2)]))
-    big = Table([[Paragraph("첫해 예상 감면액", st(8, textColor=colors.HexColor(MUTE))),
-                  Paragraph(f'<font name="Display" size="30">{c["첫해 합계"]:,}</font><font size="12"> 원</font>', st(12, 34, textColor=colors.HexColor(INK)))]],
-                colWidths=[38 * mm, W - 38 * mm])
-    big.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(HAIR)), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                             ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
-    story = [head, Spacer(1, 2 * mm), big, Spacer(1, 3 * mm)]
+class _Kit:
+    """리포트와 상담 전달 자료가 함께 쓰는 모양(검정 띠·큰 금액·회색 표 머리·면책 상자)."""
 
-    def table(rows, widths, head=True, size=8.5, pad=3):
-        t = Table([[Paragraph(_esc(x), st(size)) for x in r] for r in rows], colWidths=widths)
+    def __init__(self):
+        self.f = _font()
+        self.W = A4[0] - 32 * mm
+
+    def st(self, size, lead=None, **kw):
+        return ParagraphStyle("s", fontName=self.f, fontSize=size, leading=lead or size * 1.45, **kw)
+
+    def doc(self, buf, title):
+        return SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=10 * mm, bottomMargin=9 * mm,
+                                 title=title, author="AI 정부지원금 & 세액공제 추천 서비스")
+
+    def head(self, kicker, title_html, sub):
+        h = Table([[Paragraph(kicker, self.st(8, textColor=colors.HexColor("#9e9ea0")))],
+                   [Paragraph(title_html, self.st(21, 26, textColor=colors.white))],
+                   [Paragraph(sub, self.st(7.5, textColor=colors.HexColor("#e5e5e5")))]], colWidths=[self.W])
+        h.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(INK)), ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                               ("TOPPADDING", (0, 0), (0, 0), 9), ("BOTTOMPADDING", (0, -1), (-1, -1), 9),
+                               ("TOPPADDING", (0, 1), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -2), 2)]))
+        return h
+
+    def big(self, label, number):
+        b = Table([[Paragraph(label, self.st(8, textColor=colors.HexColor(MUTE))),
+                    Paragraph(f'<font name="Display" size="30">{number:,}</font><font size="12"> 원</font>', self.st(12, 34, textColor=colors.HexColor(INK)))]],
+                  colWidths=[38 * mm, self.W - 38 * mm])
+        b.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(HAIR)), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+        return b
+
+    def table(self, rows, widths, head=True, size=8.5, pad=3):
+        t = Table([[Paragraph(_esc(x), self.st(size)) for x in r] for r in rows], colWidths=widths)
         style = [("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor(HAIR)), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                  ("TOPPADDING", (0, 0), (-1, -1), pad), ("BOTTOMPADDING", (0, 0), (-1, -1), pad)]
         if head:
             style.append(("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(CLOUD)))
         t.setStyle(TableStyle(style))
         return t
+
+    def foot(self, text):
+        x = Table([[Paragraph(_esc(text), self.st(8, textColor=colors.HexColor(INK)))]], colWidths=[self.W])
+        x.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(CLOUD)), ("LINEBEFORE", (0, 0), (0, -1), 2.5, colors.HexColor(INK)),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
+        return x
+
+
+# 도현 글꼴에는 가운뎃점(·)이 없어 그 글자만 나눔고딕으로 그린다
+_TITLE_REPORT = '<font name="Display">세액공제</font><font name="Nanum">·</font><font name="Display">정부지원사업 추천 리포트</font>'
+_TITLE_BRIEF = '<font name="Display">상담 전달 자료</font>'
+
+
+def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template",
+              docs: list[dict] | None = None, basis: str = "가상 기업 기준 예시") -> bytes:
+    k = _Kit()
+    st, table, W = k.st, k.table, k.W
+    buf = BytesIO()
+    doc = k.doc(buf, "세액공제·정부지원사업 추천 리포트")
+    c = facts["세액공제(원)"]
+    story = [k.head("세액공제 · 정부지원사업", _TITLE_REPORT, f"{basis} · 작성일 {date.today().isoformat()} · {DISCLAIMER}"),
+             Spacer(1, 2 * mm), k.big("첫해 예상 감면액", c["첫해 합계"]), Spacer(1, 3 * mm)]
 
     story += [Paragraph("1. 기업 조건", st(11)), Spacer(1, 1.5 * mm),
               table([["업종", facts["기업"]["업종"]], ["소재지", f"{facts['기업']['소재지']} (수도권: {facts['기업']['수도권']})"],
@@ -97,10 +126,49 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
             story.append(Paragraph(_esc(para), st(9, 13.5)))
     story += [Spacer(1, 3 * mm), Paragraph("유의사항", st(9)),
               Paragraph("· " + "<br/>· ".join(_esc(n) for n in notes[:6]), st(7.5, 11, textColor=colors.HexColor(MUTE))),
-              Spacer(1, 2 * mm)]
-    foot = Table([[Paragraph(_esc(f"본 문서는 {DISCLAIMER} 공고 신청 자격과 마감은 반드시 원문 공고에서 확인하세요."), st(8, textColor=colors.HexColor(INK)))]], colWidths=[W])
-    foot.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(CLOUD)), ("LINEBEFORE", (0, 0), (0, -1), 2.5, colors.HexColor(INK)),
-                              ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
-    story.append(foot)
+              Spacer(1, 2 * mm), k.foot(f"본 문서는 {DISCLAIMER} 공고 신청 자격과 마감은 반드시 원문 공고에서 확인하세요.")]
+    doc.build(story)
+    return buf.getvalue()
+
+
+def build_brief_pdf(basis: str, company: dict, res: dict, docs: list[dict], matches: list[dict], expert: dict | None = None,
+                    topic: str | None = None, channel: str | None = None, memo: str = "", receipt: str | None = None) -> bytes:
+    """상담 전달 자료 1페이지 PDF. 리포트와 같은 모양이고, 금액은 규칙 엔진 결과(만원)를 원 단위로만 바꿔 옮긴다."""
+    from src.money import man_to_won
+    k = _Kit()
+    st, table = k.st, k.table
+    buf = BytesIO()
+    doc = k.doc(buf, "상담 전달 자료")
+    sub = f"{basis} · 작성일 {date.today().isoformat()}" + (f" · 접수번호 {receipt}" if receipt else "") + f" · {DISCLAIMER}"
+    story = [k.head("세액공제 · 정부지원사업", _TITLE_BRIEF, sub), Spacer(1, 2 * mm),
+             k.big("첫해 예상 감면액", man_to_won(res["total_first_year"])), Spacer(1, 2 * mm)]
+    if expert:
+        story += [Paragraph("상담 요청", st(11)), Spacer(1, 1.5 * mm),
+                  table([["상담 전문가", f"{expert['name']} · {expert['firm']}"], ["상담 분야", topic or "-"], ["희망 방식", channel or "-"]]
+                        + ([["추가로 전할 말", memo.strip()[:120]]] if memo.strip() else []), [38 * mm, 140 * mm], head=False, size=8, pad=2),
+                  Spacer(1, 2 * mm)]
+    story += [Paragraph("1. 기업 조건", st(11)), Spacer(1, 1.5 * mm),
+              table([["업종 · 소재지", f"{company['industry']} · {company['sido']}"], ["설립일", company["founded"]],
+                     ["중소기업 판정", "해당" if company["is_sme"] else "확인 필요"],
+                     ["상시근로자", f"전년 {company['ep']}명 → 당해 {company['ec']}명 (청년 등 {company['yp']}명 → {company['yc']}명)"]],
+                    [38 * mm, 140 * mm], head=False, size=8, pad=2), Spacer(1, 2 * mm)]
+    rows = [["구분", "첫해 예상액 (원)"]]
+    rows += [[c["name"], f"{man_to_won(c['amount_first_year']):,}"] for c in res.get("credits", [])
+             if c["status"] == "computed" and c.get("in_total")]
+    if len(rows) == 1:
+        rows.append(["금액이 계산된 공제·감면 없음", "-"])
+    story += [Paragraph("2. 계산 결과 (규칙 엔진, 참고용)", st(11)), Spacer(1, 1.5 * mm), table(rows, [100 * mm, 78 * mm], size=8, pad=2)]
+    if res.get("overlap_note"):
+        story.append(Paragraph(_esc(res["overlap_note"]), st(7.5, 11, textColor=colors.HexColor(MUTE))))
+    story.append(Spacer(1, 2 * mm))
+    if docs:
+        story += [Paragraph("3. 신청 때 준비할 서류 (일반 안내)", st(11)), Spacer(1, 1.5 * mm),
+                  table([["공제·감면", "준비 서류", "시기"]] + [[d["name"], "; ".join(d["documents"]), d["timing"]] for d in docs],
+                        [27 * mm, 108 * mm, 43 * mm], size=7, pad=1.5),
+                  Paragraph(_esc(NOTICE), st(7.5, 11, textColor=colors.HexColor(MUTE))), Spacer(1, 2 * mm)]
+    if matches:
+        story += [Paragraph("4. 추천 정부지원사업 (상위 3건)", st(11)), Spacer(1, 1.5 * mm),
+                  table([["공고"]] + [[m["title"][:70]] for m in matches[:3]], [178 * mm], size=8, pad=2), Spacer(1, 2 * mm)]
+    story.append(k.foot(f"본 문서는 {DISCLAIMER} 실제 신청 서류와 요건은 전문가와 확인하세요."))
     doc.build(story)
     return buf.getvalue()

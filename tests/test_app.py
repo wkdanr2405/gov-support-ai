@@ -43,7 +43,7 @@ def test_expert_form_requires_consent_and_stores_nothing():
     assert any("체크" in e.value for e in at.error)
     at.checkbox[-1].check()              # 폼 안의 값은 제출할 때 함께 전달된다
     at.button[-1].click().run()
-    assert any("전송·저장되지 않았습니다" in s.value for s in at.success)
+    assert any("접수되었습니다" in s.value for s in at.success)
 
 
 def test_disaster_preset_shows_credit_and_total():
@@ -104,10 +104,10 @@ def test_recommendations_are_ten_and_paged_by_four():
 
 def test_expert_tab_ranks_picks_and_shows_receipt():
     at = demo()
-    assert at.radio(key="expert_pick").options[0] == "가상 전문가 A"      # ① 예시는 R&D·고용 공제 → A가 맨 앞
-    at.radio(key="expert_pick").set_value("가상 전문가 C").run()
+    assert at.radio(key="expert_pick").options[0] == "박서윤 세무사"      # ① 예시는 R&D·고용 공제 → 박서윤 세무사가 맨 앞
+    at.radio(key="expert_pick").set_value("이하린 경영지도사").run()
     at.checkbox[-1].check()
     at.button[-1].click().run()
     assert not at.exception
     text = " ".join(str(m.value) for m in at.markdown)
-    assert "DEMO-" in text and "가상 전문가 C" in text and "요청 접수" in text
+    assert "DEMO-" in text and "이하린 경영지도사" in text and "요청 접수" in text
