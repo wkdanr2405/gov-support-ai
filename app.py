@@ -49,7 +49,13 @@ PRESETS = {
     "③ 경기 소프트웨어 (설립 2년, 급성장)": dict(ind="J", sido="경기", founded=date(2024, 6, 10), rev=5, assets=8, big=False,
                                               ep=4, ec=8, yp=1, yc=5, rc=6000, rp=0, known=False, avg4=0),
 }
-KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4"]
+NO_DIS = dict(dl=0, dt=0, du=0, dcur=0, dred=0)      # 재해손실 입력 기본값 (재해 없음)
+for _p in PRESETS.values():
+    _p.update(NO_DIS)
+PRESETS["④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공제 시연)"] = dict(
+    PRESETS[list(PRESETS)[0]], dl=16000, dt=40000, du=3000, dcur=2000, dred=500)
+KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4",
+        "dl", "dt", "du", "dcur", "dred"]
 
 
 def apply_preset():
@@ -85,11 +91,23 @@ rnd_prev = r2.number_input("직전 과세연도 지출액", min_value=0, step=10
 known = r3.checkbox("직전 4년 연평균을 알고 있음", key="known")
 avg4 = r3.number_input("직전 4년 연평균 (만 원)", min_value=0, step=100, disabled=not known, key="avg4")
 
+st.subheader("재해손실 (선택, 만 원)")
+st.caption("화재·풍수해 등으로 사업용 자산을 잃은 경우에만 입력하세요. 토지는 제외한 장부가액 기준입니다. 입력하지 않으면(0) 해당 없음으로 봅니다.")
+d1, d2, d3 = st.columns(3)
+dis_lost = d1.number_input("재해로 상실한 자산가액", min_value=0, step=100, key="dl")
+dis_total = d1.number_input("상실 전 총자산가액 (토지 제외)", min_value=0, step=100, key="dt")
+dis_unpaid = d2.number_input("재해일 현재 미부과·미납 법인세", min_value=0, step=100, key="du")
+dis_cur = d2.number_input("재해일이 속한 사업연도 법인세", min_value=0, step=100, key="dcur")
+dis_red = d3.number_input("그 법인세에서 다른 법률로 받는 공제·감면세액", min_value=0, step=100, key="dred")
+
 with st.expander("청년 등 근로자는 누구인가요?"):
     st.write("만 15~34세(병역 이행 시 최대 6년을 뺀 나이), 장애인, 계약일 현재 60세 이상, 경력단절근로자, "
              "북한이탈주민입니다. 근로계약 체결 당시 34세 이하면 이후 일정 기간 청년으로 봅니다. "
              "(시행령 제26조의8 제4항)")
 
+if dis_lost > dis_total:
+    st.error("상실한 자산가액이 상실 전 총자산가액보다 클 수 없습니다.")
+    st.stop()
 if yp > ep or yc > ec:
     st.error("청년 등 근로자 수는 전체 상시근로자 수보다 많을 수 없습니다.")
     st.stop()
@@ -108,7 +126,9 @@ with st.expander("아직 원문 확인 전인 판정 기준"):
 st.header("3. 세액공제 예상액")
 inp = {"region": "capital" if sido in CAPITAL_AREA else "non_capital",
        "employees_prev": int(ep), "employees_curr": int(ec), "youth_prev": int(yp), "youth_curr": int(yc),
-       "rnd_curr": rnd_curr, "rnd_prev": rnd_prev}
+       "rnd_curr": rnd_curr, "rnd_prev": rnd_prev,
+       "disaster_lost_assets": dis_lost, "disaster_total_assets": dis_total, "disaster_unpaid_tax": dis_unpaid,
+       "disaster_current_tax": dis_cur, "disaster_other_reductions": dis_red}
 if known:
     inp["rnd_prev4_avg"] = avg4
 res = calculate(inp)

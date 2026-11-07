@@ -3,6 +3,7 @@
 새 공제를 추가하려면: (1) data/tax_params/연도.yaml에 수치 (2) 이 파일에 evaluate 함수 (3) CREDITS에 한 줄.
 카드 status: 'computed' 금액 계산됨 / 'not_applicable' 입력상 해당 없음 / 'planned' 아직 구현 전.
 """
+from .disaster import disaster_credit
 from .employment import employment_credit, headcount_increases
 from .rnd import rnd_credit
 
@@ -30,6 +31,18 @@ def _rnd(inp: dict, params: dict) -> dict:
     return {**base, "status": "computed", "basis": {"current": "당기분 방식 (당기 지출의 25%)", "increase": "증가분 방식 (증가액의 50%)"}[r["method"]], "amount_first_year": r["amount"]}
 
 
+def _disaster(inp: dict, params: dict) -> dict:
+    r = disaster_credit(inp.get("disaster_lost_assets", 0), inp.get("disaster_total_assets", 0), inp.get("disaster_unpaid_tax", 0),
+                        inp.get("disaster_current_tax", 0), inp.get("disaster_other_reductions", 0), params)
+    d = params["disaster_loss"]
+    base = {"id": "disaster_loss", "name": "재해손실세액공제", "law_ref": d["law_ref"], "verified": d["verified"],
+            "formula": "(미납 법인세 + 해당연도 법인세) × 상실비율, 상실 자산가액 한도", "raw": r}
+    if r["amount"] > 0:
+        basis = f"재해상실비율 {r['ratio_pct']}%" + (" · 상실 자산가액 한도 적용" if r["cap_applied"] else "")
+        return {**base, "status": "computed", "basis": basis, "amount_first_year": r["amount"]}
+    return {**base, "status": "not_applicable", "basis": r["note"], "amount_first_year": 0}
+
+
 def _planned(credit_id: str):
     def evaluate(inp: dict, params: dict) -> dict:
         p = params["planned_credits"][credit_id]
@@ -38,7 +51,7 @@ def _planned(credit_id: str):
     return evaluate
 
 
-CREDITS = [_employment, _rnd, _planned("disaster_loss")]
+CREDITS = [_employment, _rnd, _disaster, _planned("startup_sme_exemption"), _planned("sme_special_reduction")]
 
 
 def evaluate_all(inp: dict, params: dict) -> list[dict]:

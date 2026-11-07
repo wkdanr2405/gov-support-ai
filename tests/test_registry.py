@@ -5,7 +5,7 @@ BASE = {"region": "capital", "employees_prev": 10, "employees_curr": 13, "youth_
 
 def test_cards_cover_all_credits_in_order():
     cards = calculate(BASE)["credits"]
-    assert [c["id"] for c in cards] == ["integrated_employment", "rnd_credit", "disaster_loss"]
+    assert [c["id"] for c in cards] == ["integrated_employment", "rnd_credit", "disaster_loss", "startup_sme_exemption", "sme_special_reduction"]
 
 
 def test_card_amounts_match_legacy_totals():
@@ -25,5 +25,5 @@ def test_not_applicable_when_inputs_are_zero():
 
 
 def test_planned_card_has_no_amount_and_is_unverified():
-    c = calculate(BASE)["credits"][2]
+    c = calculate(BASE)["credits"][3]
     assert c["status"] == "planned" and c["amount_first_year"] is None and c["verified"] is False

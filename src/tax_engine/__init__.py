@@ -14,7 +14,8 @@ def calculate(inp: dict, year: int = 2026) -> dict:
     """입력 dict → 계산 결과 dict. 금액 단위 만원.
 
     inp: region('capital'|'non_capital'), employees_prev/curr, youth_prev/curr,
-         rnd_curr, rnd_prev(선택), rnd_prev4_avg(선택)
+         rnd_curr, rnd_prev(선택), rnd_prev4_avg(선택),
+         disaster_lost_assets/disaster_total_assets/disaster_unpaid_tax/disaster_current_tax/disaster_other_reductions(선택, 재해손실)
     """
     params = load_params(year)
     cards = evaluate_all(inp, params)
@@ -31,6 +32,8 @@ def calculate(inp: dict, year: int = 2026) -> dict:
         "만원 미만은 절사했습니다.",
         DISCLAIMER,
     ]
+    if cards[2]["status"] == "computed":
+        notes.append("재해손실세액공제는 '납세가 곤란하다고 인정'되어야 하고 세무서장에게 신청해야 합니다(원칙 재해발생일부터 3개월). 시행령 세부 기준은 원문 확인 전입니다.")
     if rnd["increase_note"]:
         notes.append(rnd["increase_note"])
     return {
@@ -39,7 +42,8 @@ def calculate(inp: dict, year: int = 2026) -> dict:
         "rnd_credit": rnd["amount"],
         "rnd_method": rnd["method"],
         "rnd_options": {"current": rnd["current"], "increase": rnd["increase"]},
-        "total_first_year": by_year[0] + rnd["amount"],
+        "total_first_year": sum(c["amount_first_year"] for c in cards if c["status"] == "computed"),
+        "disaster_credit": cards[2]["amount_first_year"],
         "total_employment_3y": sum(by_year),
         "items": items,
         "credits": cards,

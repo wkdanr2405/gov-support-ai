@@ -25,7 +25,8 @@ def build_facts(profile_name: str, inputs: dict, res: dict, matches: list[dict],
         "기업": {"업종": profile_name, "소재지": sido, "수도권": "예" if inputs["region"] == "capital" else "아니오"},
         "인원": {"증가 청년": res["increases"]["youth"], "증가 청년외": res["increases"]["other"]},
         "세액공제(만원)": {"첫해 합계": res["total_first_year"], "통합고용 연차별": res["employment_by_year"],
-                      "통합고용 3년 합계": res["total_employment_3y"], "연구인력개발비": res["rnd_credit"]},
+                      "통합고용 3년 합계": res["total_employment_3y"], "연구인력개발비": res["rnd_credit"],
+                      "재해손실세액공제": res.get("disaster_credit", 0)},
         "추천공고": [{"제목": m["title"], "마감": "상시/확인 필요" if m["d_day"] is None else f"D-{m['d_day']}",
                     "근거": m["matched_keywords"][:4]} for m in matches[:3]],
     }
@@ -60,7 +61,8 @@ def template_text(facts: dict) -> str:
     c = facts["세액공제(만원)"]
     lines = [f"입력하신 조건 기준으로 첫해 세액공제 예상액은 약 {c['첫해 합계']:,}만 원입니다. "
              f"이 중 통합고용세액공제는 연차별로 {', '.join(f'{v:,}만 원' for v in c['통합고용 연차별'])}이고, "
-             f"연구·인력개발비 세액공제는 {c['연구인력개발비']:,}만 원으로 계산되었습니다."]
+             f"연구·인력개발비 세액공제는 {c['연구인력개발비']:,}만 원으로 계산되었습니다."
+             + (f" 재해손실세액공제는 {c['재해손실세액공제']:,}만 원으로 예상됩니다(세무서장의 인정이 필요합니다)." if c.get("재해손실세액공제") else "")]
     recs = facts["추천공고"]
     if recs:
         names = " / ".join(f"{_short(r['제목'])} ({r['마감']})" for r in recs)
