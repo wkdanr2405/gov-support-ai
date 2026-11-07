@@ -20,6 +20,7 @@ except Exception:
 from src.data_sources import load_announcements
 from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.matching import Embedder, build_profile, match
+from src.money import fmt_won, kor_unit, parse_won, won_to_eok, won_to_man
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_pdf
 
@@ -70,15 +71,48 @@ KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc"
         "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo", "sa"]
 
 
+# 금액 칸: 프리셋에 적은 값(억 원·만 원)을 원 단위로 바꿔 쉼표 문자열로 넣는다
+MONEY = {"rev": 10 ** 8, "assets": 10 ** 8, "rc": 10 ** 4, "rp": 10 ** 4, "avg4": 10 ** 4,
+         "dl": 10 ** 4, "dt": 10 ** 4, "du": 10 ** 4, "dcur": 10 ** 4, "dred": 10 ** 4, "ct": 10 ** 4}
+
+
+def state_value(p, k):
+    if k == "ind":
+        return label_of[p[k]]
+    return fmt_won(int(p[k] * MONEY[k])) if k in MONEY else p[k]
+
+
 def apply_preset():
     p = PRESETS[st.session_state["preset"]]
     for k in KEYS:
-        st.session_state[k] = label_of[p[k]] if k == "ind" else p[k]
+        st.session_state[k] = state_value(p, k)
+
+
+def normalize_money(key):
+    """입력이 끝나면 숫자를 쉼표 형태로 정리한다 (숫자가 아니면 그대로 두고 아래에서 안내)."""
+    v = parse_won(st.session_state.get(key))
+    if v is not None:
+        st.session_state[key] = fmt_won(v)
+
+
+BAD_MONEY = []
+
+
+def money_input(label, key, help=None, disabled=False):
+    """원 단위 금액 입력. 쉼표를 넣어도 되고 안 넣어도 되며, 칸 아래에 '억·만' 단위로 읽어 준다."""
+    st.text_input(label, key=key, on_change=normalize_money, args=(key,), help=help, disabled=disabled, placeholder="예: 500,000,000")
+    v = parse_won(st.session_state.get(key))
+    if v is None:
+        BAD_MONEY.append(label)
+        st.caption("⚠ 숫자만 입력해 주세요")
+        return 0
+    st.caption("= " + kor_unit(v))
+    return v
 
 
 first = PRESETS[list(PRESETS)[0]]
 for k in KEYS:
-    st.session_state.setdefault(k, label_of[first[k]] if k == "ind" else first[k])
+    st.session_state.setdefault(k, state_value(first, k))
 st.selectbox("시연 시나리오 (선택하면 입력칸이 채워집니다)", list(PRESETS), key="preset", on_change=apply_preset)
 
 summary = st.container()     # 계산이 끝난 뒤 맨 위에 결과 요약을 채운다
@@ -92,8 +126,8 @@ with tab_a:
         sido = st.selectbox("소재지 (시·도)", SIDO, key="sido")
         founded = st.date_input("설립일", min_value=date(1980, 1, 1), max_value=date.today(), key="founded")
     with c2:
-        revenue = st.number_input("최근 3년 평균 매출액 (억 원)", min_value=0, step=1, key="rev")
-        assets = st.number_input("자산총액 (억 원)", min_value=0, step=1, key="assets")
+        revenue_w = money_input("최근 3년 평균 매출액 (원)", "rev")
+        assets_w = money_input("자산총액 (원)", "assets")
         big_owner = st.checkbox("자산 5천억 원 이상 법인이 지분 30% 이상을 가진 최다출자자", key="big")
 with tab_b:
     st.caption("통합고용세액공제와 연구·인력개발비 세액공제에 쓰입니다.")
@@ -102,35 +136,48 @@ with tab_b:
     ec = b1.number_input("당해 상시근로자 수", min_value=0, step=1, key="ec")
     yp = b2.number_input("전년 청년 등 근로자 수", min_value=0, step=1, key="yp")
     yc = b2.number_input("당해 청년 등 근로자 수", min_value=0, step=1, key="yc")
-    rnd_curr = b3.number_input("연구·인력개발비 당해 지출액 (만 원)", min_value=0, step=100, key="rc")
-    rnd_prev = b3.number_input("직전 과세연도 지출액 (만 원)", min_value=0, step=100, key="rp")
-    known = b3.checkbox("직전 4년 연평균을 알고 있음", key="known")
-    avg4 = b3.number_input("직전 4년 연평균 (만 원)", min_value=0, step=100, disabled=not known, key="avg4")
+    with b3:
+        rnd_curr_w = money_input("연구·인력개발비 당해 지출액 (원)", "rc")
+        rnd_prev_w = money_input("직전 과세연도 지출액 (원)", "rp")
+        known = st.checkbox("직전 4년 연평균을 알고 있음", key="known")
+        avg4_w = money_input("직전 4년 연평균 (원)", "avg4", disabled=not known)
     with st.expander("청년 등 근로자는 누구인가요?"):
         st.write("만 15~34세(병역 이행 시 최대 6년을 뺀 나이), 장애인, 계약일 현재 60세 이상, 경력단절근로자, "
                  "북한이탈주민입니다. 근로계약 체결 당시 34세 이하면 이후 일정 기간 청년으로 봅니다. "
                  "(시행령 제26조의8 제4항)")
 with tab_c:
-    st.caption("화재·풍수해 등으로 사업용 자산을 잃은 경우에만 입력하세요 (만 원, 토지는 제외한 장부가액). 입력하지 않으면(0) 해당 없음으로 봅니다.")
+    st.caption("화재·풍수해 등으로 사업용 자산을 잃은 경우에만 입력하세요 (원 단위, 토지는 제외한 장부가액). 입력하지 않으면(0) 해당 없음으로 봅니다.")
     d1, d2, d3 = st.columns(3)
-    dis_lost = d1.number_input("재해로 상실한 자산가액", min_value=0, step=100, key="dl")
-    dis_total = d1.number_input("상실 전 총자산가액 (토지 제외)", min_value=0, step=100, key="dt")
-    dis_unpaid = d2.number_input("재해일 현재 미부과·미납 법인세", min_value=0, step=100, key="du")
-    dis_cur = d2.number_input("재해일이 속한 사업연도 법인세", min_value=0, step=100, key="dcur")
-    dis_red = d3.number_input("그 법인세에서 다른 법률로 받는 공제·감면세액", min_value=0, step=100, key="dred")
+    with d1:
+        dis_lost_w = money_input("재해로 상실한 자산가액 (원)", "dl")
+        dis_total_w = money_input("상실 전 총자산가액, 토지 제외 (원)", "dt")
+    with d2:
+        dis_unpaid_w = money_input("재해일 현재 미부과·미납 법인세 (원)", "du")
+        dis_cur_w = money_input("재해일이 속한 사업연도 법인세 (원)", "dcur")
+    with d3:
+        dis_red_w = money_input("그 법인세에서 다른 법률로 받는 공제·감면세액 (원)", "dred")
 with tab_d:
-    st.caption("창업중소기업 세액감면과 중소기업 특별세액감면은 법인세 산출세액에 감면율을 곱해 계산합니다 (만 원). "
+    st.caption("창업중소기업 세액감면과 중소기업 특별세액감면은 법인세 산출세액에 감면율을 곱해 계산합니다 (원 단위). "
                "산출세액을 비워 두면(0) 계산하지 않습니다. 감면 대상이 아닌 사업의 소득이 섞여 있으면 비율을 낮추세요.")
     AREAS = {"수도권 과밀억제권역": "overcrowded", "수도권 (과밀억제권역 제외)": "capital_other",
              "수도권 인구감소지역": "pop_decline", "비수도권": "non_capital"}
     t1, t2, t3 = st.columns(3)
-    corp_tax = t1.number_input("법인세 산출세액", min_value=0, step=100, key="ct")
-    income_pct = t1.number_input("감면 대상 소득 비율 (%)", min_value=0, max_value=100, step=10, key="ip")
+    with t1:
+        corp_tax_w = money_input("법인세 산출세액 (원)", "ct")
+        income_pct = st.number_input("감면 대상 소득 비율 (%)", min_value=0, max_value=100, step=10, key="ip")
     first_year = t2.number_input("최초 소득 발생 연도 (창업감면)", min_value=1980, max_value=2030, step=1, key="fy")
     youth_ceo = t2.checkbox("대표자가 창업 당시 만 34세 이하 (청년창업)", key="ceo")
     area_label = t3.selectbox("창업 지역 구분 (창업감면)", list(AREAS), key="sa",
                               help="과밀억제권역·인구감소지역 해당 여부는 직접 선택합니다. 소재지가 수도권 밖이면 '비수도권'이 적용됩니다.")
 
+if BAD_MONEY:
+    st.error("금액은 숫자만 입력해 주세요 (쉼표는 자동으로 붙습니다): " + ", ".join(BAD_MONEY))
+    st.stop()
+# 화면은 원 단위로 받고, 계산 엔진에는 만원(억원)으로 환산해 넘긴다
+revenue, assets = won_to_eok(revenue_w), won_to_eok(assets_w)
+rnd_curr, rnd_prev, avg4 = won_to_man(rnd_curr_w), won_to_man(rnd_prev_w), won_to_man(avg4_w)
+dis_lost, dis_total, dis_unpaid, dis_cur, dis_red = (won_to_man(v) for v in (dis_lost_w, dis_total_w, dis_unpaid_w, dis_cur_w, dis_red_w))
+corp_tax = won_to_man(corp_tax_w)
 if dis_lost > dis_total:
     st.error("상실한 자산가액이 상실 전 총자산가액보다 클 수 없습니다. ('재해손실' 탭을 확인하세요)")
     st.stop()
