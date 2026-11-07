@@ -58,7 +58,7 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
               table([["구분", "금액"], ["첫해 합계 (금액이 계산된 공제의 합)", f"{c['첫해 합계']:,}"],
                      ["통합고용세액공제 연차별", " / ".join(f"{i+1}차 {v:,}" for i, v in enumerate(yr))],
                      ["통합고용 3년 합계", f"{c['통합고용 3년 합계']:,}"], ["연구·인력개발비 세액공제", f"{c['연구인력개발비']:,}"]]
-                     + ([["재해손실세액공제", f"{c['재해손실세액공제']:,}"]] if c.get("재해손실세액공제") else []),
+                     + [[n, f"{c[n]:,}"] for n in ("재해손실세액공제", "창업중소기업 세액감면", "중소기업 특별세액감면") if c.get(n)],
                     [100 * mm, 78 * mm]), Spacer(1, 4 * mm)]
     rows = [["추천 정부지원사업", "마감", "근거"]]
     for m in matches[:3]:

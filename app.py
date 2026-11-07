@@ -43,19 +43,25 @@ label_of = {code: lab for lab, code in labels.items()}
 # 시연 시나리오: 고르면 아래 입력칸이 한 번에 채워진다 (가상 기업)
 PRESETS = {
     "① 서울 전자부품 제조 (설립 3년, 청년 2명 채용)": dict(ind="C26", sido="서울", founded=date(2023, 3, 15), rev=30, assets=50, big=False,
-                                                        ep=10, ec=13, yp=0, yc=2, rc=20000, rp=15000, known=True, avg4=14000),
+                                                        ep=10, ec=13, yp=0, yc=2, rc=20000, rp=15000, known=True, avg4=14000,
+                                                        ct=0, ip=100, fy=2023, ceo=True, sa="수도권 과밀억제권역"),
     "② 부산 기계장비 제조 (설립 7년, 소폭 증원)": dict(ind="C29", sido="부산", founded=date(2019, 5, 2), rev=80, assets=120, big=False,
-                                                    ep=25, ec=27, yp=3, yc=4, rc=8000, rp=7000, known=True, avg4=6500),
+                                                    ep=25, ec=27, yp=3, yc=4, rc=8000, rp=7000, known=True, avg4=6500,
+                                                    ct=3000, ip=100, fy=2019, ceo=False, sa="비수도권"),
     "③ 경기 소프트웨어 (설립 2년, 급성장)": dict(ind="J", sido="경기", founded=date(2024, 6, 10), rev=5, assets=8, big=False,
-                                              ep=4, ec=8, yp=1, yc=5, rc=6000, rp=0, known=False, avg4=0),
+                                              ep=4, ec=8, yp=1, yc=5, rc=6000, rp=0, known=False, avg4=0,
+                                              ct=800, ip=100, fy=2024, ceo=True, sa="수도권 (과밀억제권역 제외)"),
 }
 NO_DIS = dict(dl=0, dt=0, du=0, dcur=0, dred=0)      # 재해손실 입력 기본값 (재해 없음)
 for _p in PRESETS.values():
     _p.update(NO_DIS)
 PRESETS["④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공제 시연)"] = dict(
     PRESETS[list(PRESETS)[0]], dl=16000, dt=40000, du=3000, dcur=2000, dred=500)
+PRESETS["⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)"] = dict(
+    PRESETS[list(PRESETS)[0]], sido="대구", founded=date(2026, 3, 1), yp=0, yc=2,
+    ct=4000, ip=100, fy=2026, ceo=True, sa="비수도권")
 KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4",
-        "dl", "dt", "du", "dcur", "dred"]
+        "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo", "sa"]
 
 
 def apply_preset():
@@ -100,6 +106,18 @@ dis_unpaid = d2.number_input("재해일 현재 미부과·미납 법인세", min
 dis_cur = d2.number_input("재해일이 속한 사업연도 법인세", min_value=0, step=100, key="dcur")
 dis_red = d3.number_input("그 법인세에서 다른 법률로 받는 공제·감면세액", min_value=0, step=100, key="dred")
 
+st.subheader("법인세 감면 (창업중소기업 · 중소기업 특별세액감면, 만 원)")
+st.caption("두 감면은 법인세 산출세액에 감면율을 곱해 계산합니다. 산출세액은 직접 입력하세요. 감면 대상이 아닌 사업의 소득이 섞여 있으면 아래 비율을 낮추세요.")
+AREAS = {"수도권 과밀억제권역": "overcrowded", "수도권 (과밀억제권역 제외)": "capital_other",
+         "수도권 인구감소지역": "pop_decline", "비수도권": "non_capital"}
+t1, t2, t3 = st.columns(3)
+corp_tax = t1.number_input("법인세 산출세액", min_value=0, step=100, key="ct")
+income_pct = t1.number_input("감면 대상 소득 비율 (%)", min_value=0, max_value=100, step=10, key="ip")
+first_year = t2.number_input("최초 소득 발생 연도 (창업감면)", min_value=1980, max_value=2030, step=1, key="fy")
+youth_ceo = t2.checkbox("대표자가 창업 당시 만 34세 이하 (청년창업)", key="ceo")
+area_label = t3.selectbox("창업 지역 구분 (창업감면)", list(AREAS), key="sa",
+                          help="과밀억제권역·인구감소지역 해당 여부는 직접 선택합니다. 소재지가 수도권 밖이면 '비수도권'이 적용됩니다.")
+
 with st.expander("청년 등 근로자는 누구인가요?"):
     st.write("만 15~34세(병역 이행 시 최대 6년을 뺀 나이), 장애인, 계약일 현재 60세 이상, 경력단절근로자, "
              "북한이탈주민입니다. 근로계약 체결 당시 34세 이하면 이후 일정 기간 청년으로 봅니다. "
@@ -127,6 +145,10 @@ st.header("3. 세액공제 예상액")
 inp = {"region": "capital" if sido in CAPITAL_AREA else "non_capital",
        "employees_prev": int(ep), "employees_curr": int(ec), "youth_prev": int(yp), "youth_curr": int(yc),
        "rnd_curr": rnd_curr, "rnd_prev": rnd_prev,
+       "ksic": labels[label], "avg_revenue_eok": revenue, "is_sme": sme["is_sme"], "founded": founded.isoformat(),
+       "first_income_year": int(first_year), "youth_ceo": youth_ceo, "corp_tax": corp_tax, "eligible_income_pct": income_pct,
+       "startup_area": ("non_capital" if sido not in CAPITAL_AREA else
+                        (AREAS[area_label] if AREAS[area_label] != "non_capital" else "capital_other")),
        "disaster_lost_assets": dis_lost, "disaster_total_assets": dis_total, "disaster_unpaid_tax": dis_unpaid,
        "disaster_current_tax": dis_cur, "disaster_other_reductions": dis_red}
 if known:
@@ -134,7 +156,7 @@ if known:
 res = calculate(inp)
 
 st.subheader("세액공제 항목별 판정")
-STATUS_LABEL = {"computed": "🟢 금액 계산됨", "not_applicable": "⚪ 해당 없음 (입력 기준)", "planned": "🛠️ 준비 중"}
+STATUS_LABEL = {"computed": "🟢 금액 계산됨", "not_applicable": "⚪ 해당 없음 (입력 기준)"}
 ORDER = {"computed": 0, "not_applicable": 1, "planned": 2}   # 계산된 공제를 먼저 보여준다
 cards = sorted(res["credits"], key=lambda c: ORDER[c["status"]])
 for i in range(0, len(cards), 3):
@@ -145,11 +167,15 @@ for i in range(0, len(cards), 3):
             if card["status"] == "computed":
                 st.metric("첫해 예상액", won(card["amount_first_year"]))
             st.write(card["basis"])
-            st.caption(card["law_ref"] + ("" if card["verified"] else " · 조문 확인 전"))
-st.caption("아래 '첫해 예상 감면액'은 금액이 계산된 공제만 더한 값입니다. 최저한세, 다른 공제와의 중복 적용 배제는 반영하지 않았습니다.")
+            if card["status"] == "computed" and not card["in_total"]:
+                st.warning("합계에서 제외: " + card["excluded_reason"])
+            st.caption(card["law_ref"] + ("" if card["verified"] else " · 일부 조문 확인 전"))
+if res["overlap_note"]:
+    st.info(res["overlap_note"])
+st.caption("아래 '첫해 예상 감면액'은 금액이 계산되고 중복 적용 배제에서 제외되지 않은 항목만 더한 값입니다. 최저한세는 반영하지 않았습니다.")
 
 m1, m2, m3 = st.columns(3)
-m1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="통합고용 1차연도 + 연구·인력개발비")
+m1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="계산된 공제·감면 중 중복 배제에서 제외되지 않은 항목의 합")
 m2.metric("통합고용 3년 합계", won(res["total_employment_3y"]))
 m3.metric("연구·인력개발비 (당해)", won(res["rnd_credit"]),
           help={"current": "당기분 방식(25%)", "increase": "증가분 방식(50%)", "none": "지출 없음"}[res["rnd_method"]])

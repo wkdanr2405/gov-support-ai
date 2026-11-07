@@ -15,10 +15,11 @@ def calculate(inp: dict, year: int = 2026) -> dict:
 
     inp: region('capital'|'non_capital'), employees_prev/curr, youth_prev/curr,
          rnd_curr, rnd_prev(선택), rnd_prev4_avg(선택),
+         ksic/avg_revenue_eok/is_sme/corp_tax/eligible_income_pct/founded/first_income_year/startup_area/youth_ceo(선택, 법인세 감면),
          disaster_lost_assets/disaster_total_assets/disaster_unpaid_tax/disaster_current_tax/disaster_other_reductions(선택, 재해손실)
     """
     params = load_params(year)
-    cards = evaluate_all(inp, params)
+    cards, overlap_note = evaluate_all(inp, params, year)
     emp, rd = cards[0], cards[1]
     inc, by_year, rnd = emp["raw"]["increases"], emp["raw"]["by_year"], rd["raw"]
     items = [
@@ -34,6 +35,8 @@ def calculate(inp: dict, year: int = 2026) -> dict:
     ]
     if cards[2]["status"] == "computed":
         notes.append("재해손실세액공제는 '납세가 곤란하다고 인정'되어야 하고 세무서장에게 신청해야 합니다(원칙 재해발생일부터 3개월). 시행령 세부 기준은 원문 확인 전입니다.")
+    if overlap_note:
+        notes.append(overlap_note)
     if rnd["increase_note"]:
         notes.append(rnd["increase_note"])
     return {
@@ -42,8 +45,9 @@ def calculate(inp: dict, year: int = 2026) -> dict:
         "rnd_credit": rnd["amount"],
         "rnd_method": rnd["method"],
         "rnd_options": {"current": rnd["current"], "increase": rnd["increase"]},
-        "total_first_year": sum(c["amount_first_year"] for c in cards if c["status"] == "computed"),
+        "total_first_year": sum(c["amount_first_year"] for c in cards if c["in_total"]),
         "disaster_credit": cards[2]["amount_first_year"],
+        "overlap_note": overlap_note,
         "total_employment_3y": sum(by_year),
         "items": items,
         "credits": cards,

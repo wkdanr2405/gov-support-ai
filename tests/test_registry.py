@@ -24,6 +24,6 @@ def test_not_applicable_when_inputs_are_zero():
     assert r["total_first_year"] == 0
 
 
-def test_planned_card_has_no_amount_and_is_unverified():
-    c = calculate(BASE)["credits"][3]
-    assert c["status"] == "planned" and c["amount_first_year"] is None and c["verified"] is False
+def test_reduction_cards_without_tax_inputs_are_not_applicable_and_flagged_unverified():
+    for c in calculate(BASE)["credits"][3:]:
+        assert c["status"] == "not_applicable" and c["amount_first_year"] == 0 and c["verified"] is False and c["in_total"] is False

@@ -1,10 +1,11 @@
 """세액공제 항목 모듈 목록. 항목마다 evaluate 함수 하나로 '카드'(dict)를 돌려준다.
 
-새 공제를 추가하려면: (1) data/tax_params/연도.yaml에 수치 (2) 이 파일에 evaluate 함수 (3) CREDITS에 한 줄.
+새 공제를 추가하려면: (1) data/tax_params/연도.yaml에 수치 (2) 이 파일에 evaluate 함수 (3) evaluate_all의 카드 목록에 한 줄. 중복 배제는 _resolve_overlaps에서 정한다.
 카드 status: 'computed' 금액 계산됨 / 'not_applicable' 입력상 해당 없음 / 'planned' 아직 구현 전.
 """
 from .disaster import disaster_credit
 from .employment import employment_credit, headcount_increases
+from .reductions import sme_special, startup_exemption
 from .rnd import rnd_credit
 
 
@@ -43,16 +44,47 @@ def _disaster(inp: dict, params: dict) -> dict:
     return {**base, "status": "not_applicable", "basis": r["note"], "amount_first_year": 0}
 
 
-def _planned(credit_id: str):
-    def evaluate(inp: dict, params: dict) -> dict:
-        p = params["planned_credits"][credit_id]
-        return {"id": credit_id, "name": p["name"], "status": "planned", "basis": p["note"], "formula": "",
-                "law_ref": p["law_ref"], "verified": False, "amount_first_year": None}
-    return evaluate
+def _reduction_card(cid: str, name: str, key: str, r: dict, params: dict, formula: str) -> dict:
+    d = params[key]
+    base = {"id": cid, "name": name, "law_ref": d["law_ref"], "verified": d["verified"], "formula": formula, "raw": r}
+    if r["amount"] > 0:
+        size = f"{r['size']} · " if r.get("size") else ""
+        basis = f"{size}감면율 {r['rate_pct']}%" + (" · 한도 적용" if r["cap_applied"] else "")
+        return {**base, "status": "computed", "basis": basis, "amount_first_year": r["amount"]}
+    return {**base, "status": "not_applicable", "basis": r["note"], "amount_first_year": 0}
 
 
-CREDITS = [_employment, _rnd, _disaster, _planned("startup_sme_exemption"), _planned("sme_special_reduction")]
+def _startup(inp: dict, params: dict, tax_year: int = 2026) -> dict:
+    return _reduction_card("startup_sme_exemption", "창업중소기업 세액감면", "startup_exemption",
+                           startup_exemption(inp, params, tax_year), params, "산출세액 × 감면소득 비율 × 감면율, 연 5억 원 한도")
 
 
-def evaluate_all(inp: dict, params: dict) -> list[dict]:
-    return [f(inp, params) for f in CREDITS]
+def _sme_special(inp: dict, params: dict, tax_year: int = 2026) -> dict:
+    return _reduction_card("sme_special_reduction", "중소기업 특별세액감면", "sme_special",
+                           sme_special(inp, params), params, "산출세액 × 감면소득 비율 × 감면율, 연 1억 원 한도(감소 인원 차감)")
+
+
+def _resolve_overlaps(cards: list[dict]) -> str:
+    """중복 적용 배제(제127조). 합계에 넣을 카드를 정한다. 반환: 선택 결과 설명(없으면 빈 문자열)."""
+    by = {c["id"]: c for c in cards}
+    for c in cards:
+        c["in_total"], c["excluded_reason"] = c["status"] == "computed", ""
+    emp, sp, su = by["integrated_employment"], by["sme_special_reduction"], by["startup_sme_exemption"]
+    # 선택지 A: 통합고용 + 특별감면 / 선택지 B: 창업감면(통합고용·특별감면 제외). 같은 연도 첫해 금액이 큰 쪽.
+    a = emp["amount_first_year"] + sp["amount_first_year"]
+    b = su["amount_first_year"]
+    if su["status"] != "computed":
+        return ""      # 창업감면이 없으면 통합고용·특별감면은 함께 받을 수 있다
+    if b > a:
+        for c, why in ((emp, "창업중소기업 세액감면을 선택해 통합고용세액공제는 함께 받을 수 없습니다 (제127조)"),
+                       (sp, "창업감면과 특별감면은 하나만 선택합니다 (제127조)")):
+            if c["status"] == "computed":
+                c["in_total"], c["excluded_reason"] = False, why
+        return f"중복 적용 배제: 창업감면({b:,}만 원)이 통합고용+특별감면({a:,}만 원)보다 커서 창업감면을 선택한 것으로 계산했습니다."
+    su["in_total"], su["excluded_reason"] = False, "특별감면과 통합고용 조합이 더 유리해 이쪽은 선택하지 않은 것으로 계산했습니다 (제127조)"
+    return f"중복 적용 배제: 통합고용+특별감면({a:,}만 원)이 창업감면({b:,}만 원) 이상이라 이 조합을 선택한 것으로 계산했습니다."
+
+
+def evaluate_all(inp: dict, params: dict, tax_year: int = 2026) -> tuple[list[dict], str]:
+    cards = [_employment(inp, params), _rnd(inp, params), _disaster(inp, params), _startup(inp, params, tax_year), _sme_special(inp, params, tax_year)]
+    return cards, _resolve_overlaps(cards)

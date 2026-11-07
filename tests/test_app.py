@@ -52,3 +52,17 @@ def test_disaster_input_error_when_lost_exceeds_total():
     at = run()
     at.number_input(key="dl").set_value(500).run()
     assert any("총자산가액보다 클 수 없습니다" in e.value for e in at.error)
+
+
+def test_overlap_presets_pick_the_better_combination():
+    at = run()
+    at.selectbox(key="preset").select("③ 경기 소프트웨어 (설립 2년, 급성장)").run()
+    assert not at.exception
+    # ③: 통합고용 2,800 + 특별감면 160(소기업 수도권 20% × 800) > 창업감면 800 → 합계 2,800 + 160 + R&D 1,500
+    assert any("4,460만 원" in str(m.value) for m in at.metric)
+    assert any("합계에서 제외" in w.value for w in at.warning)
+    at.selectbox(key="preset").select("⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)").run()
+    assert not at.exception
+    # ⑤: 창업감면 4,000(비수도권 청년 100%) > 통합고용 2,700 + 특별감면 1,200 → 합계 4,000 + R&D 5,000
+    assert any("9,000만 원" in str(m.value) for m in at.metric)
+    assert at.number_input(key="ct").value == 4000
