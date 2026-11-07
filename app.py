@@ -32,14 +32,58 @@ DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합
 
 st.set_page_config(page_title="AI 정부지원금 & 세액공제 추천", page_icon="📊", layout="wide")
 st.markdown("""<style>
-.block-container {padding-top: 2.4rem; max-width: 1120px;}
-h1 {font-size: 1.85rem !important; line-height: 1.25 !important; letter-spacing: -0.01em;}
-h2, h3 {letter-spacing: -0.01em;}
-[data-testid="stMetricValue"] {font-size: 1.7rem;}
-[data-testid="stTabs"] button[role="tab"] {font-size: 1rem;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+/* 디자인 규칙 (docs/09-design-system.md): 검정·흰색·옅은 회색만 쓰고, 버튼은 알약 모양, 카드는 평평하게(그림자 없음) */
+:root {--ink:#111111; --cloud:#f5f5f5; --hair:#cacacb; --mute:#707072; --success:#007d48; --sale:#d30005;}
+.stApp, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp p, .stApp label, .stApp li,
+.stApp button, .stApp input, .stApp textarea, .stApp [data-baseweb="select"] {
+  font-family: Inter, "Helvetica Neue", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;}
+.block-container {padding-top: 1.5rem; max-width: 1120px;}
+/* 맨 위 안내 띠: 사진 없이 큰 글자만 (검정 바탕에 흰 글자) */
+.hero {background: var(--ink); color: #fff; padding: 40px 32px 32px; margin-bottom: 16px;}
+.hero .kicker {font-size: 0.8rem; font-weight: 500; letter-spacing: 0.04em; color: #9e9ea0; margin-bottom: 12px;}
+.hero h1 {color:#fff !important; font-size: 3rem !important; font-weight: 700 !important; line-height: 1.05 !important;
+  letter-spacing: -0.02em; margin: 0 0 16px 0; padding: 0;}
+.hero .sub {font-size: 1rem; color: #e5e5e5; line-height: 1.6; max-width: 640px;}
+@media (max-width: 640px) {.hero {padding: 28px 20px 22px;} .hero h1 {font-size: 2.1rem !important;}}
+h5 {font-size: 1.5rem !important; font-weight: 500 !important; letter-spacing: -0.01em; margin-top: 32px !important;}
+/* 평평한 카드: 모서리 직각, 그림자 없음, 머리카락 두께 선 */
+[data-testid="stVerticalBlock"] {border-radius: 0 !important; border-color: var(--hair) !important; box-shadow: none !important;}
+[data-testid="stMetricValue"] {font-size: 1.9rem; font-weight: 700; letter-spacing: -0.01em;}
+[data-testid="stMetricLabel"] {color: var(--mute);}
+/* 탭: 선택된 탭은 검정 밑줄 */
+[data-testid="stTabs"] button[role="tab"] {font-size: 1rem; font-weight: 500; color: var(--mute);}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {color: var(--ink);}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"] {background-color: var(--ink) !important; height: 2px;}
+[data-testid="stTabs"] [data-baseweb="tab-border"] {background-color: var(--hair);}
+/* 버튼: 검정 알약(주 버튼) */
+[data-testid^="stBaseButton-"][data-testid*="econdary"], [data-testid="stBaseButton-primary"], [data-testid="stDownloadButton"] button {
+  background: var(--ink) !important; color: #fff !important; border: 0 !important; border-radius: 30px !important;
+  min-height: 48px; padding: 0 32px; font-weight: 500; box-shadow: none !important;}
+[data-testid^="stBaseButton-"][data-testid*="econdary"] p, [data-testid="stBaseButton-primary"] p, [data-testid="stDownloadButton"] button p {color:#fff !important;}
+/* 입력칸: 옅은 회색 바탕, 선택하면 검정 2px 테두리 */
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"], [data-testid="stDateInput"] [data-baseweb="input"] {
+  background: var(--cloud) !important; border-color: transparent !important; border-radius: 24px !important;}
+[data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within, [data-baseweb="select"] > div:focus-within {
+  background: #fff !important; border: 2px solid var(--ink) !important; box-shadow: 0 0 0 6px var(--cloud) !important;}
+[data-baseweb="textarea"] {border-radius: 16px !important;}
+/* 안내 상자: 평평한 옅은 회색, 왼쪽에 색 줄 (색은 의미가 있을 때만) */
+[data-testid="stAlert"], [data-testid="stAlertContainer"] {background: var(--cloud) !important; color: var(--ink) !important; border-radius: 0 !important;}
+[data-testid="stAlertContainer"] {border: 0 !important; border-left: 3px solid var(--ink) !important;}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) {border-left-color: var(--success) !important;}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {border-left-color: var(--sale) !important;}
+[data-testid="stAlert"] p {color: var(--ink) !important;}
+/* 펼침 상자와 표 */
+[data-testid="stExpander"] {border-radius: 0 !important; border-color: var(--hair) !important;}
+[data-testid="stExpander"] details {border-radius: 0 !important;}
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {color: var(--mute) !important; opacity: 1 !important;}
+.ok {color: var(--success); font-weight: 500;} .na {color: var(--mute);}
 </style>""", unsafe_allow_html=True)
-st.title("AI 정부지원금 & 세액공제 맞춤형 추천 서비스")
-st.caption("기업 정보를 넣으면 ① 세액공제·감면 예상액 ② 맞는 정부지원사업 ③ 1페이지 리포트를 만들어 줍니다.")
+st.markdown(
+    '<div class="hero"><div class="kicker">세액공제 · 정부지원사업</div>'
+    '<h1>AI 정부지원금<br>&amp; 세액공제</h1>'
+    '<div class="sub">기업 정보를 넣으면 ① 세액공제·감면 예상액 ② 맞는 정부지원사업 ③ 1페이지 리포트를 만들어 줍니다.</div></div>',
+    unsafe_allow_html=True)
 
 won = won_text   # 엔진 결과(만원)를 화면에는 원 단위로 보여 준다
 
@@ -216,14 +260,14 @@ with r_tax:
         for u in sme["unverified"]:
             st.write("· " + u)
 
-    STATUS_LABEL = {"computed": "🟢 금액 계산됨", "not_applicable": "⚪ 해당 없음 (입력 기준)"}
+    STATUS_LABEL = {"computed": "● 금액 계산됨", "not_applicable": "○ 해당 없음 (입력 기준)"}
     ORDER = {"computed": 0, "not_applicable": 1, "planned": 2}   # 계산된 공제를 먼저 보여준다
     cards = sorted(res["credits"], key=lambda c: ORDER[c["status"]])
     for i in range(0, len(cards), 3):
         for card, col in zip(cards[i:i + 3], st.columns(3)):
             with col, st.container(border=True):
                 st.markdown(f"**{card['name']}**")
-                st.caption(STATUS_LABEL[card["status"]])
+                st.markdown(f'<span class="{"ok" if card["status"] == "computed" else "na"}">{STATUS_LABEL[card["status"]]}</span>', unsafe_allow_html=True)
                 if card["status"] == "computed":
                     st.metric("첫해 예상액", won(card["amount_first_year"]))
                     st.caption("= " + kor_unit(man_to_won(card["amount_first_year"])))
@@ -296,7 +340,7 @@ with r_report:
         st.caption(DOCS_NOTICE)
         for d in docs:
             st.markdown(f"**{d['name']}** · {d['timing']}")
-            st.write("\n".join("· " + x for x in d["documents"]))
+            st.markdown("\n".join("- " + x for x in d["documents"]))
         if not docs:
             st.write("금액이 계산된 공제·감면이 없어 안내할 서류가 없습니다.")
     if st.button("해설 만들기"):

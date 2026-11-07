@@ -1,9 +1,12 @@
 [theme]
 base = "light"
-primaryColor = "#1f4fd8"
+primaryColor = "#111111"
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f3f6fb"
-textColor = "#14233b"
+secondaryBackgroundColor = "#f5f5f5"
+textColor = "#111111"
+borderColor = "#cacacb"
+baseRadius = "full"
+font = "sans-serif"
 
 [client]
 toolbarMode = "minimal"
