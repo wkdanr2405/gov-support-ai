@@ -265,6 +265,7 @@ if yp > ep or yc > ec:
     st.error("청년 등 근로자 수는 전체 상시근로자 수보다 많을 수 없습니다. ('인력 · 연구개발비' 탭을 확인하세요)")
     st.stop()
 
+sme_blank = revenue_w == 0 and assets_w == 0   # 매출액·자산총액을 아직 넣지 않은 빈 화면
 sme = judge_sme({"ksic": labels[label], "avg_revenue_eok": revenue, "assets_eok": assets, "owned_by_large_corp": big_owner})
 inp = {"region": "capital" if sido in CAPITAL_AREA else "non_capital",
        "employees_prev": int(ep), "employees_curr": int(ec), "youth_prev": int(yp), "youth_curr": int(yc),
@@ -284,7 +285,9 @@ r_tax, r_match, r_report, r_expert = st.tabs(["세액공제 · 감면", "지원�
 
 # ---------- 세액공제·감면 ----------
 with r_tax:
-    if sme["is_sme"]:
+    if sme_blank:
+        st.info("매출액과 자산총액을 입력하면 중소기업 해당 여부를 판정합니다. 지금은 확인할 수 없습니다.")
+    elif sme["is_sme"]:
         st.success(f"중소기업 기준에 해당합니다. ({sme['industry']}: 평균매출액 {sme['limit_eok']:,}억 원 이하, 자산총액 5천억 원 미만)")
     else:
         st.warning("중소기업 기준에 해당하지 않을 수 있습니다. 아래 계산은 중소기업 기준이라 참고용으로만 보세요.")
@@ -425,7 +428,7 @@ with r_expert:
     chosen = next(x for x in experts if x["name"] == pick)
 
     # 2) 상담 전달 자료: 계산 결과·준비 서류·추천 공고를 자동으로 묶는다 (1페이지 PDF)
-    company = dict(industry=label.split(" ", 1)[1], sido=sido, founded=founded.isoformat(), is_sme=sme["is_sme"],
+    company = dict(industry=label.split(" ", 1)[1], sido=sido, founded=founded.isoformat(), is_sme=sme["is_sme"] and not sme_blank,
                    ep=int(ep), ec=int(ec), yp=int(yp), yc=int(yc))
     st.markdown("**2. 상담 전달 자료**")
     preview = build_brief(BASIS, company, res, docs, out["items"])
@@ -470,6 +473,6 @@ with summary:
         s1, s2, s3, s4 = st.columns(4)
         s1.metric("첫해 예상 감면액", won(res["total_first_year"]), help="계산된 공제·감면 중 중복 배제에서 제외되지 않은 항목의 합 · " + "= " + kor_unit(man_to_won(res["total_first_year"])))
         s2.metric("금액이 계산된 항목", f"{n_done}개 / {len(res['credits'])}개", help="통합고용·연구개발비·재해손실·창업감면·특별감면")
-        s3.metric("중소기업 판정", "해당" if sme["is_sme"] else "확인 필요")
+        s3.metric("중소기업 판정", "해당" if sme["is_sme"] and not sme_blank else "확인 필요")
         s4.metric("추천 공고", f"{len(out['items'])}건", help="조건에 맞는 공고 중 점수가 높은 순서")
         st.caption(f"{BASIS} · {DISCLAIMER} 아래 탭에서 자세한 내용을 확인하세요.")

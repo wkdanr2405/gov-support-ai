@@ -111,3 +111,12 @@ def test_expert_tab_ranks_picks_and_shows_receipt():
     assert not at.exception
     text = " ".join(str(m.value) for m in at.markdown)
     assert "DEMO-" in text and "이하린 공인회계사" in text and "요청 접수" in text
+
+
+def test_blank_manual_screen_says_sme_needs_confirmation():
+    at = run()                                                           # 직접 입력, 매출·자산 0
+    assert [m.value for m in at.metric if m.label == "중소기업 판정"] == ["확인 필요"]
+    assert any("판정합니다" in i.value for i in at.info)
+    at.text_input(key="rev").set_value("3,000,000,000").run()
+    at.text_input(key="assets").set_value("5,000,000,000").run()
+    assert [m.value for m in at.metric if m.label == "중소기업 판정"] == ["해당"]
