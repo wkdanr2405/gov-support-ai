@@ -24,6 +24,9 @@ def test_not_applicable_when_inputs_are_zero():
     assert r["total_first_year"] == 0
 
 
-def test_reduction_cards_without_tax_inputs_are_not_applicable_and_flagged_unverified():
+def test_reduction_cards_without_tax_inputs_are_not_applicable():
     for c in calculate(BASE)["credits"][3:]:
-        assert c["status"] == "not_applicable" and c["amount_first_year"] == 0 and c["verified"] is False and c["in_total"] is False
+        assert c["status"] == "not_applicable" and c["amount_first_year"] == 0 and c["in_total"] is False
+    by_id = {c["id"]: c for c in calculate(BASE)["credits"]}
+    assert by_id["startup_sme_exemption"]["verified"] is False   # 시행령 세부 일부 미확인
+    assert by_id["sme_special_reduction"]["verified"] is True    # 법 제7조·조특령 제6조·별표 3 확인(11/11)

@@ -96,7 +96,7 @@ def test_sme_special_cap_flag_and_decrease_to_zero():
     dict(region="capital", avg_revenue_eok=300),    # 수도권 중기업 제외
     dict(is_sme=False),
     dict(ksic="K"),                                  # 대상 업종 아님
-    dict(ksic="C29"),                                # 소기업 기준표 미확인 업종 → 계산하지 않음
+    dict(ksic="E36"),                                # 수도업은 제7조 감면 업종 아님
     dict(corp_tax=0),
 ])
 def test_sme_special_not_applicable(over):
@@ -148,3 +148,16 @@ def test_integrated_employment_amounts_match_statute_formula():
     """제29조의8 제1항 A+B+C 원문 계산식(손계산). 수도권 밖: 청년등 1,000/1,900/2,000만 원, 청년등 외 700/1,200/1,300만 원.
     청년등 2명·청년등 외 1명 증가가 3년 유지되면 1차 2,700 / 2차 5,000 / 3차 5,300만 원."""
     assert calculate(BASE)["employment_by_year"] == [2 * 1000 + 700, 2 * 1900 + 1200, 2 * 2000 + 1300]
+
+
+@pytest.mark.parametrize("code,limit", [("C19", 140), ("G", 60), ("E", 40), ("J", 50), ("C29", 120), ("F", 80)])
+def test_small_enterprise_limits_match_table3(code, limit):
+    """중기법 시행령 별표 3(개정 2025.10.1) 원문 이미지와 대조한 값 (11/11)."""
+    from src.tax_engine.params import load_params
+    assert load_params(2026)["sme_special"]["small_enterprise_limit_eok"][code] == limit
+
+
+def test_table1_corrections_from_11_11():
+    from src.tax_engine.params import load_params
+    lim = {i["code"]: i["limit_eok"] for i in load_params(2026)["sme_test"]["industries"]}
+    assert (lim["C11"], lim["C34"], lim["A"], lim["I"]) == (800, 600, 1000, 400)
