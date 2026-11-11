@@ -35,11 +35,19 @@ def test_finance_limit_is_400():
     assert judge_sme(dict(ksic="K", avg_revenue_eok=401, assets_eok=100))["is_sme"] is False
 
 
-def test_unverified_flags_are_reported():
-    r = judge_sme(prof(consumer_service=True))
-    assert r["is_sme"] is False
-    assert any(c["verified"] is False for c in r["checks"])
+def test_consumer_service_and_large_group_exclude_sme_with_confirmed_basis():
+    """조특령 제2조 제1항 제3·4호 원문 확인(11/11): 두 사유 모두 확정 근거로 중소기업 제외."""
+    for flag, name in (("consumer_service", "소비성"), ("in_large_group", "공시대상기업집단")):
+        r = judge_sme(prof(**{flag: True}))
+        assert r["is_sme"] is False
+        assert any(name in c["name"] and c["verified"] is True and not c["passed"] for c in r["checks"])
+    assert judge_sme(prof())["is_sme"] is True
+
+
+def test_remaining_unverified_items_are_reported():
+    r = judge_sme(prof())
     assert r["unverified"]
+    assert any("관계기업" in u for u in r["unverified"])
 
 
 def test_unknown_code_and_bad_numbers():

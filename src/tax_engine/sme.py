@@ -10,7 +10,7 @@ def industry_list(params: dict | None = None) -> list[dict]:
 def judge_sme(profile: dict, params: dict | None = None) -> dict:
     """profile: ksic(업종 코드), avg_revenue_eok(평균매출액등, 억원), assets_eok(자산총액, 억원),
     owned_by_large_corp(자산 5천억 이상 법인이 30% 이상 지분을 가진 최다출자자인지, 선택),
-    in_large_group(상호출자제한기업집단 소속, 선택·미확인 기준), consumer_service(소비성 서비스업, 선택·미확인 기준)
+    in_large_group(공시대상기업집단 소속, 선택), consumer_service(소비성 서비스업, 선택)
 
     반환: {is_sme, checks:[{name, passed, detail, verified}], unverified:[...]}
     """
@@ -35,14 +35,14 @@ def judge_sme(profile: dict, params: dict | None = None) -> dict:
          "detail": "자산 5천억 원 이상 법인이 30% 이상 지분을 가진 최다출자자이면 중소기업이 아님"},
     ]
     unverified = []
+    # 조특령 제2조 제1항 제3호·제4호 (2026-11-11 원문 확인): 공시대상기업집단 소속 회사,
+    # 부동산 임대업·소비성서비스업(조특령 제29조 제3항)이 주된 사업이면 중소기업이 아님.
     if profile.get("in_large_group"):
-        checks.append({"name": "상호출자제한기업집단 소속", "passed": False, "verified": False,
-                       "detail": "소속이면 중소기업이 아닌 것으로 안내 (원문 확인 전)"})
-    else:
-        unverified.append("상호출자제한기업집단 소속 여부는 입력값만 반영 (원문 확인 전)")
+        checks.append({"name": "공시대상기업집단 소속", "passed": False, "verified": True,
+                       "detail": "공정거래법상 공시대상기업집단 소속 회사는 중소기업이 아님 (조특령 제2조 제1항 제3호)"})
     if profile.get("consumer_service"):
-        checks.append({"name": "소비성 서비스업", "passed": False, "verified": False,
-                       "detail": "주된 사업이 소비성 서비스업이면 중소기업이 아닌 것으로 안내 (원문 확인 전)"})
+        checks.append({"name": "소비성 서비스업", "passed": False, "verified": True,
+                       "detail": "주된 사업이 소비성서비스업(호텔·여관업, 일반유흥·무도유흥·단란주점업 등)이면 중소기업이 아님 (조특령 제2조 제1항 제4호, 제29조 제3항)"})
     unverified += [u["item"] for u in sme["unverified_parts"] if u["item"] not in " ".join(unverified)]
     return {"is_sme": all(c["passed"] for c in checks), "checks": checks, "unverified": unverified,
             "industry": ind["name"], "limit_eok": ind["limit_eok"]}
