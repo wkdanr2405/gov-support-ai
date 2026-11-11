@@ -9,7 +9,7 @@ from .keywords import keyword_score, profile_keyword_groups
 
 __all__ = ["build_profile", "match", "Embedder"]
 
-GENERIC_TOKENS = {"영상", "음향", "컴퓨터", "통신장비", "기타", "그", "외", "관련", "서비스"}   # 업종명에서 뜻이 너무 넓어 노이즈가 되는 단어
+GENERIC_TOKENS = {"영상", "음향", "컴퓨터", "통신장비", "기타", "그", "외", "관련", "서비스", "개발", "공급"}   # 업종명에서 뜻이 너무 넓어 노이즈가 되는 단어
 W_SEMANTIC, W_KEYWORD = 0.5, 0.5   # 의미 점수와 키워드 점수의 비중. 점수는 공고끼리 비교하는 상대 순위용이다.
 
 
@@ -21,7 +21,7 @@ def build_profile(industry_name: str, sido: str, founded: date, employees_prev: 
               if t not in ("제조업", "업", "서비스업") and len(t) >= 2]
     tokens = [t.replace("제조업", "").strip() for t in tokens]
     return {"industry_name": industry_name, "industry_tokens": [t for t in tokens if t and t not in GENERIC_TOKENS][:4],
-            "is_manufacturing": "제조" in industry_name, "sido": sido, "age_years": age_years,
+            "is_manufacturing": "제조" in industry_name, "employees_curr": employees_curr, "sido": sido, "age_years": age_years,
             "employees_added": max(employees_curr - employees_prev, 0), "youth_added": max(youth_curr - youth_prev, 0),
             "rnd_curr": rnd_curr}
 

@@ -115,3 +115,53 @@ def test_announcement_text_drops_broken_glyphs():
     from src.data_sources.common import make_announcement
     a = make_announcement(title="모집​공고", target=" 모집대상 : 창업 후 10년", summary="가\xa0나�다")
     assert a["title"] == "모집공고" and a["target"] == "· 모집대상 : 창업 후 10년" and a["summary"] == "가 나다"
+
+
+def _ann(title, target="중소기업", **kw):
+    from src.data_sources.common import make_announcement
+    return make_announcement(id=title, source="t", title=title, target=target, **kw)
+
+
+def test_quality_rules_exclude_wrong_announcements():
+    from datetime import date
+    from src.matching import build_profile
+    from src.matching.filters import check
+    today = date(2026, 11, 11)
+    busan = build_profile("기타 기계 및 장비 제조업", "부산", date(2019, 5, 2), 25, 27, 3, 4, 8000, today=today)
+    seoul = build_profile("소프트웨어 개발 및 공급업", "서울", date(2023, 3, 15), 4, 8, 1, 5, 6000, today=today)
+    why = lambda a, p: check(a, p, today)[1]
+    assert why(_ann("[LH] 인큐베이팅센터 업무시설 입점기업 임대공급"), busan) == "입주·임대"
+    assert why(_ann("2026 창업보육센터 신규 입주기업 모집"), busan) == "입주·임대"
+    assert why(_ann("청년 소상공인 컨설팅 지원", target="청년 소상공인"), busan) == "소상공인 전용"
+    assert why(_ann("소상공인 및 중소기업 지원", target="중소기업"), busan) == ""            # 중소기업도 대상이면 남김
+    assert why(_ann("2026년 강원연구개발특구육성사업 참여기업 모집"), busan) == "지역"      # 제목에 다른 시도
+    assert why(_ann("[비수도권] 이노비즈 코칭 지원"), seoul) == "지역"
+    assert why(_ann("[비수도권] 이노비즈 코칭 지원"), busan) == ""
+    assert why(_ann("시설농업 AI로봇 실증 수혜기업 모집"), busan) == "다른 업종"
+    assert why(_ann("2026년 우수기업 유공 포상 공고"), busan) == "교육·행사"
+    assert why(_ann("예비창업패키지 모집", target="예비창업자"), seoul) == "예비창업자 전용"
+    assert why(_ann("초기창업패키지 모집", target="예비창업자 및 창업 후 3년 이내 기업"), seoul) == ""
+
+
+def test_quality_flags_for_sub_region_and_ceo_age():
+    from datetime import date
+    from src.matching import build_profile
+    from src.matching.filters import check
+    today = date(2026, 11, 11)
+    p = build_profile("소프트웨어 개발 및 공급업", "서울", date(2023, 3, 15), 4, 8, 1, 5, 6000, today=today)
+    ok, _, flags = check(_ann("서대문구 청년창업기업 컨설팅", target="대표자 연령 39세 이하 청년창업기업", regions=["서울"]), p, today)
+    assert ok and "세부 지역(시·군·구) 조건 확인 필요" in flags and "대표자 연령 조건 확인 필요" in flags
+
+
+def test_real_snapshot_top10_has_no_leases_or_other_region_titles():
+    from datetime import date
+    from src.data_sources import load_announcements
+    from src.matching import build_profile, match
+    from src.matching.filters import LEASE_WORDS
+    anns, _ = load_announcements()
+    today = date(2026, 11, 11)
+    for args in [("전자부품, 컴퓨터, 영상, 음향 및 통신장비 제조업", "서울", date(2023, 3, 15), 10, 13, 0, 2, 20000),
+                 ("기타 기계 및 장비 제조업", "부산", date(2019, 5, 2), 25, 27, 3, 4, 8000)]:
+        top = match(build_profile(*args, today=today), anns, None, top_n=10, today=today)["items"]
+        assert top and not any(w in r["title"] for r in top for w in LEASE_WORDS)
+        assert not any("소상공인" in r["title"] and "중소기업" not in r["target"] for r in top)   # 중소기업도 대상인 공고는 남긴다
