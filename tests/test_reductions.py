@@ -135,3 +135,16 @@ def test_disaster_and_rnd_always_included():
 def test_no_reduction_inputs_keeps_old_total():
     r = calculate({"region": "capital", "employees_prev": 10, "employees_curr": 13, "youth_prev": 2, "youth_curr": 4, "rnd_curr": 20000})
     assert r["total_first_year"] == 6800
+
+
+# ---- 2026-11-11 법 원문 대조로 정정 ----
+def test_water_supply_is_startup_eligible_but_not_sme_special():
+    """수도업(E36): 제6조 제3항 제3호에는 있으나 제7조 제1항 감면 업종에는 없다."""
+    assert su(ksic="E36")["status"] == "computed" and su(ksic="E36")["amount_first_year"] == 4000
+    assert sp(ksic="E36")["status"] == "not_applicable" and sp(ksic="E36")["amount_first_year"] == 0
+
+
+def test_integrated_employment_amounts_match_statute_formula():
+    """제29조의8 제1항 A+B+C 원문 계산식(손계산). 수도권 밖: 청년등 1,000/1,900/2,000만 원, 청년등 외 700/1,200/1,300만 원.
+    청년등 2명·청년등 외 1명 증가가 3년 유지되면 1차 2,700 / 2차 5,000 / 3차 5,300만 원."""
+    assert calculate(BASE)["employment_by_year"] == [2 * 1000 + 700, 2 * 1900 + 1200, 2 * 2000 + 1300]
