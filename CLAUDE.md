@@ -63,7 +63,7 @@ pytest                              테스트
 - `docs/05-tax-rules-spec.md` 세액공제 산식 명세와 검증 상태
 - `docs/06-glossary.md` 용어 쉬운 설명
 - `docs/07-user-checklist.md` 사용자가 직접 해야 할 일 (키 발급 등)
-- `docs/08-deck-sync.md` 발표 덱과 구현이 다른 부분
+- `docs/08-deck-sync.md` 발표 덱과 구현이 다른 부분 (맨 아래 "최종 발표 PPT 제작 시 반영할 것"은 최종 PPT 만들 때 반드시 반영)
 
 ## 알려진 불확실성
 - 기업마당·K-Startup 응답 항목은 11/2 실제 응답으로 확정했다. 호출 한도는 아직 확인하지 못했다.
