@@ -28,3 +28,12 @@
 ## E. 배포 URL 주의 (공개 주소)
 - 가상 기업 데이터와 가상 서류 샘플만 사용합니다. 실제 사업자 정보·급여 자료를 올리지 않습니다.
 - 사용자 입력은 저장하지 않습니다 (세션 안에서만 처리).
+
+## F. Claude API 키 발급 절차 (11/11 정리, 보류 중)
+Claude API는 claude.ai 구독과 별개이고, 크레딧을 충전해서 쓴 만큼 차감된다. 결제 금액은 화면에서 확인한다. 키가 없어도 서비스는 동작한다(AI 해설만 기본 문장).
+1. `platform.claude.com` 로그인 (완료)
+2. 설정 → 결제(Billing)에서 카드 등록·소액 충전 (최소 충전액은 화면 확인, 자동 충전은 끄는 것을 권장)
+3. `platform.claude.com/settings/keys` → Create key → 이름 `gov-support-ai`, 만료일은 12/14 이후 → 키(`sk-ant-`로 시작)를 바로 복사 (한 번만 보임)
+4. `share.streamlit.io` → financing-ai-project → Settings → Secrets에 `ANTHROPIC_API_KEY = "키"` 저장, 1~2분 대기
+5. Claude에게 "키 등록했어"라고만 알리기 (키 값은 채팅에 쓰지 않는다)
+6. Claude가 가상 기업 5곳으로 실제 해설 호출·숫자 검증을 확인
