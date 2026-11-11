@@ -120,3 +120,16 @@ def test_blank_manual_screen_says_sme_needs_confirmation():
     at.text_input(key="rev").set_value("3,000,000,000").run()
     at.text_input(key="assets").set_value("5,000,000,000").run()
     assert [m.value for m in at.metric if m.label == "중소기업 판정"] == ["해당"]
+
+
+def test_sigungu_selector_appears_only_for_capital_area_and_classifies():
+    at = demo()                                   # ① 서울: 시·군·구 선택 없음
+    assert not at.exception and not [s for s in at.selectbox if s.key == "sg"]
+    at = demo(at, "③ 경기 소프트웨어 (설립 2년, 급성장)")
+    assert not at.exception
+    sg = [s for s in at.selectbox if s.key == "sg"]
+    assert sg and sg[0].value == "용인시"
+    sg[0].select("남양주시").run()                # 일부 동만 과밀억제권역 → 추가 확인 질문
+    assert not at.exception and [r for r in at.radio if r.key == "ip2"]
+    at.selectbox(key="sido").select("부산").run()  # 수도권 밖으로 바꿔도 오류가 없어야 함
+    assert not at.exception

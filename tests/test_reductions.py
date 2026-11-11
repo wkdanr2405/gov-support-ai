@@ -161,3 +161,30 @@ def test_table1_corrections_from_11_11():
     from src.tax_engine.params import load_params
     lim = {i["code"]: i["limit_eok"] for i in load_params(2026)["sme_test"]["industries"]}
     assert (lim["C11"], lim["C34"], lim["A"], lim["I"]) == (800, 600, 1000, 400)
+
+
+def test_region_classification_from_statute_tables():
+    """수도권정비계획법 시행령 별표 1·행안부고시 제2026-61호 표 대조(11/11)."""
+    from src.tax_engine.regions import classify, sigungu_options
+    assert classify("부산")["area"] == "non_capital"
+    assert classify("서울")["area"] == "overcrowded"
+    assert classify("경기", "수원시")["area"] == "overcrowded"
+    assert classify("경기", "용인시")["area"] == "capital_other"
+    assert classify("경기", "포천시")["area"] == "capital_other"       # 관심지역이라 인구감소지역 아님
+    for g in ("가평군", "동두천시", "연천군"):
+        assert classify("경기", g)["area"] == "pop_decline"
+    for g in ("강화군", "옹진군"):
+        assert classify("인천", g)["area"] == "pop_decline"
+    assert classify("인천", "부평구")["area"] == "overcrowded"
+    r = classify("경기", "남양주시", in_overcrowded_part=False)
+    assert r["area"] == "capital_other" and r["needs_check"]
+    assert classify("경기", "시흥시", in_overcrowded_part=True)["area"] == "overcrowded"
+    assert "수원시" in sigungu_options("경기") and sigungu_options("서울") == []
+
+
+def test_region_changes_startup_credit_amount():
+    """같은 기업이라도 인구감소지역(50%)·과밀억제권역(0%)에 따라 일반 창업 감면액이 달라진다."""
+    from src.tax_engine.regions import classify
+    base = dict(founded="2026-03-01", youth_ceo=False, corp_tax=1000, first_income_year=2026)
+    assert su(**base, startup_area=classify("경기", "가평군")["area"])["amount_first_year"] == 500
+    assert su(**base, startup_area=classify("경기", "수원시")["area"])["status"] == "not_applicable"

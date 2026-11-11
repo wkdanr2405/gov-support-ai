@@ -19,6 +19,7 @@ except Exception:
 
 from src.data_sources import load_announcements
 from src.data_sources.common import CAPITAL_AREA, SIDO
+from src.tax_engine.regions import classify, sigungu_options
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
 from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no
@@ -110,13 +111,13 @@ label_of = {code: lab for lab, code in labels.items()}
 PRESETS = {
     "① 서울 전자부품 제조 (설립 3년, 청년 2명 채용)": dict(ind="C26", sido="서울", founded=date(2023, 3, 15), rev=30, assets=50, big=False,
                                                         ep=10, ec=13, yp=0, yc=2, rc=20000, rp=15000, known=True, avg4=14000,
-                                                        ct=0, ip=100, fy=2023, ceo=True, sa="수도권 과밀억제권역"),
+                                                        ct=0, ip=100, fy=2023, ceo=True),
     "② 부산 기계장비 제조 (설립 7년, 소폭 증원)": dict(ind="C29", sido="부산", founded=date(2019, 5, 2), rev=80, assets=120, big=False,
                                                     ep=25, ec=27, yp=3, yc=4, rc=8000, rp=7000, known=True, avg4=6500,
-                                                    ct=3000, ip=100, fy=2019, ceo=False, sa="비수도권"),
+                                                    ct=3000, ip=100, fy=2019, ceo=False),
     "③ 경기 소프트웨어 (설립 2년, 급성장)": dict(ind="J", sido="경기", founded=date(2024, 6, 10), rev=5, assets=8, big=False,
                                               ep=4, ec=8, yp=1, yc=5, rc=6000, rp=0, known=False, avg4=0,
-                                              ct=800, ip=100, fy=2024, ceo=True, sa="수도권 (과밀억제권역 제외)"),
+                                              ct=800, ip=100, fy=2024, ceo=True, sg="용인시"),
 }
 NO_DIS = dict(dl=0, dt=0, du=0, dcur=0, dred=0)      # 재해손실 입력 기본값 (재해 없음)
 for _p in PRESETS.values():
@@ -125,13 +126,13 @@ PRESETS["④ 서울 전자부품 제조 (공장 화재 · 재해손실세액공�
     PRESETS[list(PRESETS)[0]], dl=16000, dt=40000, du=3000, dcur=2000, dred=500)
 PRESETS["⑤ 대구 전자부품 제조 (2026년 창업 · 청년창업 감면 vs 통합고용 중복 배제 시연)"] = dict(
     PRESETS[list(PRESETS)[0]], sido="대구", founded=date(2026, 3, 1), yp=0, yc=2,
-    ct=4000, ip=100, fy=2026, ceo=True, sa="비수도권")
+    ct=4000, ip=100, fy=2026, ceo=True)
 # 직접 입력이 기본: 빈 칸에서 시작한다 (금액·인원 0). '가상 기업 시연'을 고르면 예시 기업 5곳 중에서 골라 채울 수 있다
 MODE_MANUAL, MODE_DEMO = "직접 입력", "가상 기업 시연"
 BLANK = dict(ind=industries[0]["code"], sido="서울", founded=date.today(), rev=0, assets=0, big=False, ep=0, ec=0, yp=0, yc=0,
-             rc=0, rp=0, known=False, avg4=0, ct=0, ip=100, fy=date.today().year, ceo=False, sa="수도권 과밀억제권역", **NO_DIS)
+             rc=0, rp=0, known=False, avg4=0, ct=0, ip=100, fy=date.today().year, ceo=False, **NO_DIS)
 KEYS = ["ind", "sido", "founded", "rev", "assets", "big", "ep", "ec", "yp", "yc", "rc", "rp", "known", "avg4",
-        "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo", "sa"]
+        "dl", "dt", "du", "dcur", "dred", "ct", "ip", "fy", "ceo"]
 
 
 # 금액 칸: 프리셋에 적은 값(억 원·만 원)을 원 단위로 바꿔 쉼표 문자열로 넣는다
@@ -148,6 +149,11 @@ def state_value(p, k):
 def _fill(p):
     for k in KEYS:
         st.session_state[k] = state_value(p, k)
+    st.session_state.pop("ip2", None)
+    if p.get("sg"):
+        st.session_state["sg"] = p["sg"]      # 시·군·구 선택칸 (수도권 안 예시만)
+    else:
+        st.session_state.pop("sg", None)
 
 
 def apply_preset():
@@ -239,16 +245,25 @@ with tab_c:
 with tab_d:
     st.caption("창업중소기업 세액감면과 중소기업 특별세액감면은 법인세 산출세액에 감면율을 곱해 계산합니다 (원 단위). "
                "산출세액을 비워 두면(0) 계산하지 않습니다. 감면 대상이 아닌 사업의 소득이 섞여 있으면 비율을 낮추세요.")
-    AREAS = {"수도권 과밀억제권역": "overcrowded", "수도권 (과밀억제권역 제외)": "capital_other",
-             "수도권 인구감소지역": "pop_decline", "비수도권": "non_capital"}
     t1, t2, t3 = st.columns(3)
     with t1:
         corp_tax_w = money_input("법인세 산출세액 (원)", "ct")
         income_pct = st.number_input("감면 대상 소득 비율 (%)", min_value=0, max_value=100, step=10, key="ip")
     first_year = t2.number_input("최초 소득 발생 연도 (창업감면)", min_value=1980, max_value=2030, step=1, key="fy")
     youth_ceo = t2.checkbox("대표자가 창업 당시 만 34세 이하 (청년창업)", key="ceo")
-    area_label = t3.selectbox("창업 지역 구분 (창업감면)", list(AREAS), key="sa",
-                              help="과밀억제권역·인구감소지역 해당 여부는 직접 선택합니다. 소재지가 수도권 밖이면 '비수도권'이 적용됩니다.")
+    sigungu, in_part = None, None
+    with t3:
+        opts = sigungu_options(sido)
+        if opts:
+            sigungu = st.selectbox("사업장 시·군·구 (창업감면 지역 구분)", opts, key="sg",
+                                   help="수도권정비계획법 시행령 별표 1과 행정안전부 고시(제2026-61호)로 과밀억제권역·인구감소지역을 자동 구분합니다.")
+            _c = classify(sido, sigungu)
+            if _c["needs_check"]:
+                in_part = st.radio("사업장이 과밀억제권역에 해당하는 곳인가요?", ["예", "아니오"], key="ip2", horizontal=True,
+                                   help=_c["needs_check"]) == "예"
+        else:
+            st.caption("수도권 밖이거나 서울이라 시·군·구 선택이 필요 없습니다.")
+_cls = classify(sido, sigungu, in_part)
 
 if BAD_MONEY:
     st.error("금액은 숫자만 입력해 주세요 (쉼표는 자동으로 붙습니다): " + ", ".join(BAD_MONEY))
@@ -272,8 +287,7 @@ inp = {"region": "capital" if sido in CAPITAL_AREA else "non_capital",
        "rnd_curr": rnd_curr, "rnd_prev": rnd_prev,
        "ksic": labels[label], "avg_revenue_eok": revenue, "is_sme": sme["is_sme"], "founded": founded.isoformat(),
        "first_income_year": int(first_year), "youth_ceo": youth_ceo, "corp_tax": corp_tax, "eligible_income_pct": income_pct,
-       "startup_area": ("non_capital" if sido not in CAPITAL_AREA else
-                        (AREAS[area_label] if AREAS[area_label] != "non_capital" else "capital_other")),
+       "startup_area": _cls["area"],
        "disaster_lost_assets": dis_lost, "disaster_total_assets": dis_total, "disaster_unpaid_tax": dis_unpaid,
        "disaster_current_tax": dis_cur, "disaster_other_reductions": dis_red}
 if known:
