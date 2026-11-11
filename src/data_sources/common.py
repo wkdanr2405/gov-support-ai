@@ -64,12 +64,24 @@ def parse_period(text: str | None) -> tuple[date | None, date | None]:
     return None, None
 
 
+def clean_text(text):
+    """공고 글자 정리: 화면에서 네모(▯)로 깨지는 글꼴 전용 기호(U+E000~F8FF)는 글머리표(·)로 바꾸고,
+    보이지 않는 글자(폭 없는 공백 등)와 깨진 대체 문자는 지운다. 문자열이 아니면 그대로 돌려준다."""
+    if not isinstance(text, str):
+        return text
+    text = re.sub(r"[\ue000-\uf8ff]", "·", text)
+    text = re.sub(r"[\u200b-\u200d\u2060\ufeff\ufffd]", "", text).replace("\xa0", " ")
+    return text
+
+
 def make_announcement(**kw) -> dict:
     """모든 출처가 같은 형식을 쓰도록 맞춘다."""
     base = {"id": "", "source": "", "title": "", "agency": "", "summary": "", "target": "", "field": "",
             "regions": ["전국"], "start": None, "end": None, "ongoing_flag": None, "biz_age": "", "age_limit": "",
             "url": "", "contact": "", "is_sample": False}
     base.update(kw)
+    for k in ("title", "agency", "summary", "target", "field", "contact"):
+        base[k] = clean_text(base[k])
     for k in ("start", "end"):
         if isinstance(base[k], date):
             base[k] = base[k].isoformat()

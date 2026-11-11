@@ -109,3 +109,9 @@ def test_event_announcements_are_excluded():
     ok, reason, _ = check(a, {"sido": "서울", "age_years": 3}, TODAY)
     assert not ok and reason == "교육·행사"
     assert not is_event({"title": "중소기업 기술개발 지원사업"})
+
+
+def test_announcement_text_drops_broken_glyphs():
+    from src.data_sources.common import make_announcement
+    a = make_announcement(title="모집​공고", target=" 모집대상 : 창업 후 10년", summary="가\xa0나�다")
+    assert a["title"] == "모집공고" and a["target"] == "· 모집대상 : 창업 후 10년" and a["summary"] == "가 나다"
