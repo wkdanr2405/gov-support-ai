@@ -201,7 +201,7 @@ top_cust, top_pro = st.tabs(["기업 화면", "세무사 / 회계사"])
 
 with top_pro:
     st.caption("전문가·운영자 쪽 흐름을 보여 주는 시연 화면입니다. 모든 인물과 법인은 가상이고, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요.")
-    p1, p2, p3 = st.tabs(["전문가 등록 신청", "운영자 승인", "받은 상담 요청"])
+    p1, p2, p3 = st.tabs(["전문가 등록 신청", "운영자 승인", "고객 상담 요청"])
     with p1:
         st.write("실제 서비스에서는 자격번호를 한국세무사회·한국공인회계사회 공개 조회로 확인한 뒤 승인합니다. 여기서는 승인 절차만 보여 줍니다.")
         with st.form("pro_register"):
@@ -244,7 +244,7 @@ with top_pro:
         me = next(x for x in approved if x["name"] == who)
         inbox = list_requests(edb, me["id"])
         if not inbox:
-            st.info("아직 받은 상담 요청이 없습니다. '전문가 연결' 탭에서 이 전문가를 골라 상담을 요청하면 여기에 나타납니다.")
+            st.info("아직 들어온 고객 상담 요청이 없습니다. '전문가 연결' 탭에서 이 전문가를 골라 상담을 요청하면 여기에 나타납니다.")
         for rq in inbox:
             with st.expander(f"{rq['receipt']} · {rq['topic']} · {rq['channel']}", expanded=True):
                 st.text(rq["brief"])
@@ -543,10 +543,10 @@ with top_cust:
                 st.markdown("\n".join(f"{i}. {s_}" for i, s_ in enumerate(STEPS, 1)))
                 sent_pdf = build_brief_pdf(BASIS, company, res, docs, out["items"], expert=chosen, topic=topic, channel=channel,
                                            memo=memo, receipt=no)
-                add_request(edb, no, chosen["id"], topic, channel, memo, brief, sent_pdf)    # '세무사 / 회계사' 탭의 '받은 상담 요청'에 나타남
+                add_request(edb, no, chosen["id"], topic, channel, memo, brief, sent_pdf)    # '세무사 / 회계사' 탭의 '고객 상담 요청'에 나타남
                 st.download_button("접수한 상담 전달 자료 PDF 내려받기", sent_pdf,
                                    file_name=f"상담_전달_자료_{no}.pdf", mime="application/pdf")
-                st.caption("맨 위 '세무사 / 회계사' 탭의 '받은 상담 요청'에서 이 요청을 전문가 입장에서 볼 수 있습니다.")
+                st.caption("맨 위 '세무사 / 회계사' 탭의 '고객 상담 요청'에서 이 요청을 전문가 입장에서 볼 수 있습니다.")
                 st.caption("신청·신고는 전문가와 상의해 진행하세요.")
 
     # ---------- 맨 위 결과 요약 (위에서 만들어 둔 자리에 채운다) ----------

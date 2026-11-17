@@ -144,7 +144,7 @@ def test_sigungu_selector_appears_only_for_capital_area_and_classifies():
 
 
 def test_expert_flow_register_approve_and_inbox():
-    """전문가 등록 신청 → 운영자 승인 → 추천 명단에 포함, 상담 요청 → 전문가의 받은 요청에 나타남."""
+    """전문가 등록 신청 → 운영자 승인 → 추천 명단에 포함, 상담 요청 → 전문가의 고객 상담 요청에 나타남."""
     at = demo()
     assert len(at.radio(key="expert_pick").options) == 6
     # 필수 항목 없이 등록하면 안내
@@ -163,7 +163,7 @@ def test_expert_flow_register_approve_and_inbox():
     # 운영자 승인 → 7명
     btn(at, "자격 확인 완료 · 승인").click().run()
     assert not at.exception and len(at.radio(key="expert_pick").options) == 7
-    # 상담 요청 → 받은 요청에 나타남
+    # 상담 요청 → 고객 상담 요청에 나타남
     at.radio(key="expert_pick").set_value("최가온 세무사").run()
     consent(at).check()
     btn(at, "상담 요청 보내기").click().run()
