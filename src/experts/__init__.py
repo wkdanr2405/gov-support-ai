@@ -4,32 +4,50 @@
 정렬은 규칙(합계에 들어간 공제·감면 id와 전문 분야가 겹치는 수)만 쓰고, 금액은 규칙 엔진 결과를 그대로 옮긴다.
 """
 import hashlib
-from pathlib import Path
-
-import yaml
 
 from src.money import won_text
 
-PATH = Path(__file__).resolve().parents[2] / "data" / "sample" / "experts.yaml"
 DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합니다."
 STEPS = ["요청 접수", "전문가 검토", "상담 일정 안내", "상담 진행", "신청 준비 (전문가와 상의해 진행)"]
+# 시·도 → 상담 지역권 (전문가의 활동 지역은 지역권 이름으로 적는다)
+REGION_GROUP = {"서울": "수도권", "인천": "수도권", "경기": "수도권", "대전": "충청권", "세종": "충청권", "충북": "충청권", "충남": "충청권",
+                "부산": "영남권", "대구": "영남권", "울산": "영남권", "경북": "영남권", "경남": "영남권",
+                "광주": "호남권", "전북": "호남권", "전남": "호남권", "강원": "강원권", "제주": "제주권"}
+CREDIT_NAMES = {"rnd_credit": "연구·인력개발비 공제", "integrated_employment": "통합고용 공제", "disaster_loss": "재해손실 공제",
+                "startup_sme_exemption": "창업 감면", "sme_special_reduction": "중소기업 특별감면", "gov_support": "정부지원사업"}
+INDUSTRY_NAMES = {"C": "제조업", "J": "정보통신업", "F": "건설업", "G": "도소매업", "M": "전문·과학·기술 서비스업"}
+# 점수: 분야 일치가 가장 중요하고, 지역·업종은 보조. 금액과 무관한 단순 규칙이다.
+W_SPECIALTY, W_REGION_LOCAL, W_REGION_ALL, W_INDUSTRY = 10, 3, 2, 2   # 소재지 지역권을 직접 적은 전문가가 '전국'보다 1점 높다
 
 
-def load_experts() -> list[dict]:
-    return yaml.safe_load(PATH.read_text(encoding="utf-8"))["experts"]
+def load_experts(conn=None) -> list[dict]:
+    """승인된 전문가 명단. conn이 없으면 가상 기본 명단(공용)."""
+    from .db import list_experts, shared_db
+    return list_experts(conn or shared_db(), "approved")
 
 
-def rank_experts(experts: list[dict], credit_ids: list[str], want_gov_support: bool = True) -> list[dict]:
-    """합계에 들어간 공제·감면 id와 겹치는 분야가 많은 순. 같으면 원래 순서. 각 항목에 score·reasons를 붙여 돌려준다."""
-    names = {"rnd_credit": "연구·인력개발비 공제", "integrated_employment": "통합고용 공제", "disaster_loss": "재해손실 공제",
-             "startup_sme_exemption": "창업 감면", "sme_special_reduction": "중소기업 특별감면", "gov_support": "정부지원사업"}
+def rank_experts(experts: list[dict], credit_ids: list[str], want_gov_support: bool = True,
+                 sido: str | None = None, ksic: str | None = None) -> list[dict]:
+    """점수 순(분야 10점/개 + 소재지 지역권 3점(전국 상담은 2점) + 경험 업종 2점). 같으면 명단 순서. score·reasons·reason_line을 붙여 돌려준다."""
+    group = REGION_GROUP.get(sido or "")
     ranked = []
     for i, e in enumerate(experts):
         hit = [s for s in e["specialties"] if s in credit_ids or (want_gov_support and s == "gov_support")]
-        ranked.append({**e, "score": len(hit), "reasons": [names.get(s, s) for s in hit], "_i": i})
+        reasons = [CREDIT_NAMES.get(s, s) for s in hit]
+        score = W_SPECIALTY * len(hit)
+        region_ok = bool(group) and ("전국" in e["regions"] or group in e["regions"])
+        if region_ok:
+            score += W_REGION_ALL if "전국" in e["regions"] else W_REGION_LOCAL
+            reasons.append(f"{group} 상담 가능" if "전국" not in e["regions"] else "전국 상담 가능")
+        ind_ok = bool(ksic) and any(ksic.startswith(p) for p in e.get("industries", []))
+        if ind_ok:
+            score += W_INDUSTRY
+            reasons.append(f"{INDUSTRY_NAMES.get(ksic[0], '해당 업종')} 경험")
+        ranked.append({**e, "score": score, "reasons": reasons, "region_ok": region_ok, "_i": i})
     ranked.sort(key=lambda e: (-e["score"], e["_i"]))
     for e in ranked:
         e.pop("_i")
+        e["reason_line"] = " · ".join(e["reasons"])
     return ranked
 
 

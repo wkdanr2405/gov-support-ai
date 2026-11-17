@@ -37,12 +37,20 @@ def test_preset_changes_inputs_and_region_rules():
     assert not at.exception and at.checkbox(key="known").value is False
 
 
+def btn(at, label):
+    return next(b for b in at.button if b.label == label)
+
+
+def consent(at):
+    return next(c for c in at.checkbox if "개인정보 안내를 읽고" in c.label)
+
+
 def test_expert_form_requires_consent_and_stores_nothing():
     at = run()
-    at.button[-1].click().run()          # 동의 없이 제출
+    btn(at, "상담 요청 보내기").click().run()          # 동의 없이 제출
     assert any("체크" in e.value for e in at.error)
-    at.checkbox[-1].check()              # 폼 안의 값은 제출할 때 함께 전달된다
-    at.button[-1].click().run()
+    consent(at).check()                                # 폼 안의 값은 제출할 때 함께 전달된다
+    btn(at, "상담 요청 보내기").click().run()
     assert any("접수되었습니다" in s.value for s in at.success)
 
 
@@ -106,8 +114,8 @@ def test_expert_tab_ranks_picks_and_shows_receipt():
     at = demo()
     assert at.radio(key="expert_pick").options[0] == "박서윤 세무사"      # ① 예시는 R&D·고용 공제 → 박서윤 세무사가 맨 앞
     at.radio(key="expert_pick").set_value("이하린 공인회계사").run()
-    at.checkbox[-1].check()
-    at.button[-1].click().run()
+    consent(at).check()
+    btn(at, "상담 요청 보내기").click().run()
     assert not at.exception
     text = " ".join(str(m.value) for m in at.markdown)
     assert "DEMO-" in text and "이하린 공인회계사" in text and "요청 접수" in text
@@ -133,3 +141,32 @@ def test_sigungu_selector_appears_only_for_capital_area_and_classifies():
     assert not at.exception and [r for r in at.radio if r.key == "ip2"]
     at.selectbox(key="sido").select("부산").run()  # 수도권 밖으로 바꿔도 오류가 없어야 함
     assert not at.exception
+
+
+def test_expert_flow_register_approve_and_inbox():
+    """전문가 등록 신청 → 운영자 승인 → 추천 명단에 포함, 상담 요청 → 전문가의 받은 요청에 나타남."""
+    at = demo()
+    assert len(at.radio(key="expert_pick").options) == 6
+    # 필수 항목 없이 등록하면 안내
+    btn(at, "등록 신청하기").click().run()
+    assert any("입력해 주세요" in e.value or "골라 주세요" in e.value for e in at.error)
+    # 정상 등록 → 승인 대기이므로 아직 명단에 없다
+    next(t for t in at.text_input if t.label.startswith("이름")).set_value("최가온 세무사")
+    next(t for t in at.text_input if t.label.startswith("소속")).set_value("세무회계 다온 · 대구")
+    next(t for t in at.text_area if t.label == "소개").set_value("제조업 연구개발비 공제를 주로 맡습니다.")
+    next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
+    next(m for m in at.multiselect if m.label == "활동 지역").set_value(["영남권"])
+    next(m for m in at.multiselect if m.label == "상담 방식").set_value(["화상"])
+    btn(at, "등록 신청하기").click().run()
+    assert any("접수되었습니다" in s.value for s in at.success)
+    assert len(at.radio(key="expert_pick").options) == 6
+    # 운영자 승인 → 7명
+    btn(at, "자격 확인 완료 · 승인").click().run()
+    assert not at.exception and len(at.radio(key="expert_pick").options) == 7
+    # 상담 요청 → 받은 요청에 나타남
+    at.radio(key="expert_pick").set_value("최가온 세무사").run()
+    consent(at).check()
+    btn(at, "상담 요청 보내기").click().run()
+    assert not at.exception
+    at.selectbox(key="pro_who").select("최가온 세무사").run()
+    assert any("DEMO-" in e.label for e in at.expander)

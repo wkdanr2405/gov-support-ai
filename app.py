@@ -22,7 +22,8 @@ from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.tax_engine.regions import classify, sigungu_options
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
-from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no
+from src.experts import CREDIT_NAMES, INDUSTRY_NAMES, REGION_GROUP, STEPS, build_brief, load_experts, rank_experts, receipt_no
+from src.experts.db import add_request, approve_expert, list_experts, list_requests, new_db, register_expert
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_brief_pdf, build_pdf
@@ -295,7 +296,8 @@ if known:
 res = calculate(inp)
 
 st.markdown("##### 결과")
-r_tax, r_match, r_report, r_expert = st.tabs(["세액공제 · 감면", "지원사업 추천", "해설 · PDF 리포트", "전문가 연결"])
+edb = st.session_state.setdefault("expert_db", new_db())   # 전문가 명단 데이터베이스 (이 접속 동안만 메모리에 있음)
+r_tax, r_match, r_report, r_expert, r_pro = st.tabs(["세액공제 · 감면", "지원사업 추천", "해설 · PDF 리포트", "전문가 연결", "전문가용 화면"])
 
 # ---------- 세액공제·감면 ----------
 with r_tax:
@@ -428,16 +430,25 @@ with r_expert:
     # 1) 전문가 고르기: 합계에 들어간 공제·감면과 분야가 겹치는 순서로 보여 준다
     st.markdown("**1. 전문가 고르기**")
     in_total_ids = [c["id"] for c in res["credits"] if c["status"] == "computed" and c.get("in_total")]
-    experts = rank_experts(load_experts(), in_total_ids)
-    for e_, col in zip(experts, st.columns(len(experts))):
+    experts = rank_experts(load_experts(edb), in_total_ids, sido=sido, ksic=labels[label])
+    st.caption(f"전문가 {len(experts)}명 중 이번 결과와 소재지·업종에 잘 맞는 순서입니다 (분야 10점 · 소재지 2~3점 · 업종 2점).")
+    for e_, col in zip(experts[:3], st.columns(3)):
         with col, st.container(border=True):
             st.markdown(f"**{e_['name']}**")
             st.caption(f"{e_['firm']} · 경력 {e_['years']}년")
             st.write(e_["intro"])
             st.caption("상담 방식: " + " · ".join(e_["channels"]) + " / 지역: " + ", ".join(e_["regions"]))
             st.markdown(f'<span class="{"ok" if e_["reasons"] else "na"}">' +
-                        ("● 추천 이유: " + ", ".join(e_["reasons"]) if e_["reasons"] else "○ 이번 결과와 겹치는 분야 없음") + "</span>",
+                        ("● 추천 이유: " + e_["reason_line"] if e_["reasons"] else "○ 이번 결과와 겹치는 항목 없음") + "</span>",
                         unsafe_allow_html=True)
+    if len(experts) > 3:
+        with st.expander(f"나머지 전문가 {len(experts) - 3}명 보기"):
+            for e_ in experts[3:]:
+                st.markdown(f"**{e_['name']}** · {e_['firm']} · 경력 {e_['years']}년  \n"
+                            f"{e_['intro']}  \n"
+                            f"<span class=\"{'ok' if e_['reasons'] else 'na'}\">" +
+                            ("● 추천 이유: " + e_["reason_line"] if e_["reasons"] else "○ 이번 결과와 겹치는 항목 없음") + "</span>",
+                            unsafe_allow_html=True)
     pick = st.radio("상담받을 전문가", [x["name"] for x in experts], key="expert_pick", horizontal=True)
     chosen = next(x for x in experts if x["name"] == pick)
 
@@ -474,11 +485,66 @@ with r_expert:
                      f"**상담 분야:** {topic} · **방식:** {channel}")
             st.markdown("**앞으로의 진행**")
             st.markdown("\n".join(f"{i}. {s_}" for i, s_ in enumerate(STEPS, 1)))
-            st.download_button("접수한 상담 전달 자료 PDF 내려받기",
-                               build_brief_pdf(BASIS, company, res, docs, out["items"], expert=chosen, topic=topic, channel=channel,
-                                               memo=memo, receipt=no),
+            sent_pdf = build_brief_pdf(BASIS, company, res, docs, out["items"], expert=chosen, topic=topic, channel=channel,
+                                       memo=memo, receipt=no)
+            add_request(edb, no, chosen["id"], topic, channel, memo, brief, sent_pdf)    # 전문가용 화면의 '받은 상담 요청'에 나타남
+            st.download_button("접수한 상담 전달 자료 PDF 내려받기", sent_pdf,
                                file_name=f"상담_전달_자료_{no}.pdf", mime="application/pdf")
+            st.caption("'전문가용 화면' 탭의 '받은 상담 요청'에서 이 요청을 전문가 입장에서 볼 수 있습니다.")
             st.caption("신청·신고는 전문가와 상의해 진행하세요.")
+
+# ---------- 전문가용 화면 (시연) ----------
+with r_pro:
+    st.caption("전문가·운영자 쪽 흐름을 보여 주는 시연 화면입니다. 모든 인물과 법인은 가상이고, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요.")
+    p1, p2, p3 = st.tabs(["전문가 등록 신청", "운영자 승인", "받은 상담 요청"])
+    with p1:
+        st.write("실제 서비스에서는 자격번호를 한국세무사회·한국공인회계사회 공개 조회로 확인한 뒤 승인합니다. 여기서는 승인 절차만 보여 줍니다.")
+        with st.form("pro_register"):
+            r1, r2 = st.columns(2)
+            pn = r1.text_input("이름 (가명)", placeholder="예: 최가온 세무사")
+            pf = r2.text_input("소속 (가상 법인명)", placeholder="예: 세무회계 다온 · 대구")
+            r3, r4 = st.columns(2)
+            plic = r3.radio("자격", ["세무사", "공인회계사"], horizontal=True)
+            pyears = r4.number_input("경력 (년)", min_value=0, max_value=60, value=5, step=1)
+            pspec = st.multiselect("전문 분야", list(CREDIT_NAMES), format_func=CREDIT_NAMES.get, placeholder="선택하세요")
+            pcol1, pcol2 = st.columns(2)
+            preg = pcol1.multiselect("활동 지역", ["전국"] + sorted(set(REGION_GROUP.values())), placeholder="선택하세요")
+            pch = pcol2.multiselect("상담 방식", ["화상", "전화", "대면"], placeholder="선택하세요")
+            pind = st.multiselect("경험 업종 (비우면 전 업종)", list(INDUSTRY_NAMES), format_func=INDUSTRY_NAMES.get, placeholder="선택하세요")
+            pintro = st.text_area("소개", height=80, placeholder="주로 맡는 업무를 한두 문장으로 적어 주세요")
+            reg_sent = st.form_submit_button("등록 신청하기")
+        if reg_sent:
+            try:
+                new_id = register_expert(edb, pn, pf, plic, int(pyears), pintro, pspec, preg, pch, pind)
+                st.success(f"등록 신청이 접수되었습니다 ({new_id}). '운영자 승인' 탭에서 승인하면 추천 명단에 나타납니다.")
+            except ValueError as err:
+                st.error(str(err))
+    with p2:
+        pending = list_experts(edb, "pending")
+        if not pending:
+            st.info("승인을 기다리는 등록 신청이 없습니다. '전문가 등록 신청' 탭에서 신청해 보세요.")
+        for pe in pending:
+            with st.container(border=True):
+                st.markdown(f"**{pe['name']}** ({pe['license']}) · {pe['firm']} · 경력 {pe['years']}년")
+                st.caption("분야: " + ", ".join(CREDIT_NAMES.get(x, x) for x in pe["specialties"]) + " / 지역: " + ", ".join(pe["regions"]) +
+                           " / 방식: " + ", ".join(pe["channels"]))
+                st.write(pe["intro"])
+                if st.button("자격 확인 완료 · 승인", key=f"ap_{pe['id']}"):
+                    approve_expert(edb, pe["id"])
+                    st.rerun()
+        st.caption(f"승인된 전문가: {len(list_experts(edb, 'approved'))}명")
+    with p3:
+        approved = list_experts(edb, "approved")
+        who = st.selectbox("전문가 선택", [x["name"] for x in approved], key="pro_who")
+        me = next(x for x in approved if x["name"] == who)
+        inbox = list_requests(edb, me["id"])
+        if not inbox:
+            st.info("아직 받은 상담 요청이 없습니다. '전문가 연결' 탭에서 이 전문가를 골라 상담을 요청하면 여기에 나타납니다.")
+        for rq in inbox:
+            with st.expander(f"{rq['receipt']} · {rq['topic']} · {rq['channel']}", expanded=True):
+                st.text(rq["brief"])
+                st.download_button("전달 자료 PDF", rq["pdf"], file_name=f"상담_전달_자료_{rq['receipt']}.pdf", mime="application/pdf",
+                                   key=f"pdf_{rq['receipt']}")
 
 # ---------- 맨 위 결과 요약 (위에서 만들어 둔 자리에 채운다) ----------
 with summary:

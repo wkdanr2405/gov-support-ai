@@ -67,6 +67,6 @@ pytest                              테스트
 
 ## 알려진 불확실성
 - 기업마당·K-Startup 응답 항목은 11/2 실제 응답으로 확정했다. 호출 한도는 아직 확인하지 못했다.
-- 통합고용·R&D 공제 수치와 중소기업 매출·자산 기준은 2026-11-01 조문 원문으로 확인했다 (`data/tax_params/2026.yaml`). 발표 덱의 8,750만 원은 옛 규정 값이라 교체 필요 (`docs/08-deck-sync.md`). 아직 `verified: false`: 중소기업 판정의 평균매출 산정·관계기업 합산·상호출자제한기업집단·소비성서비스업, 인원 감소 시 이후 연도 공제 산식.
+- 통합고용·R&D 공제 수치와 중소기업 매출·자산 기준은 2026-11-01 조문 원문으로 확인했다 (`data/tax_params/2026.yaml`). 발표 덱의 8,750만 원은 옛 규정 값이라 교체 필요 (`docs/08-deck-sync.md`). 11/11 시행령·별표 대조로 거의 모두 확인(19건 중 18건, `docs/05-tax-rules-spec.md`). 아직 `verified: false`: 창업감면의 '제조업과 유사한 사업' 범위 1건. 전문가 연결은 가상 전문가 6명을 메모리 SQLite에 담아 시연 (`src/experts/`).
 - 계산 엔진(`src/tax_engine`)과 계산기 화면(`app.py`)은 2주차 범위를 11/1에 구현했다. `pytest` 35건 통과. 금액 단위는 만원이다.
 - 3주차 Track B(공고 매칭, 임베딩 혼합 점수)는 11/2에 가상 샘플 공고로 구현했다. `pytest` 51건 통과. 4주차: AI 해설(src/report/explain.py, 숫자 검증·기본 문장 대체), 1페이지 PDF(src/report/pdf.py, assets/fonts/NanumGothic), 교육·행사 공고 제외. 실제 Claude 호출은 ANTHROPIC_API_KEY 발급 후 확인. 실제 저장본 K-Startup 196건·기업마당 300건 확보(11/2). K-Startup은 클라우드에서 호출 가능, 기업마당은 차단되어 사용자 PC에서 `gov-keys/fetch_bizinfo.py`로 받는다.
