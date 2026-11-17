@@ -197,7 +197,7 @@ for k in KEYS:
 
 edb = st.session_state.setdefault("expert_db", new_db())   # 전문가 명단 데이터베이스 (이 접속 동안만 메모리에 있음)
 # 화면 맨 위 선택: 기업 사용자 화면과 세무사·회계사 화면을 독립해서 보여 준다 (두 화면은 서로 입력값을 요구하지 않는다)
-top_cust, top_pro = st.tabs(["기업 화면", "세무사 / 회계사"])
+top_cust, top_pro = st.tabs(["기업", "세무사 / 회계사"])
 
 with top_pro:
     st.caption("전문가·운영자 쪽 흐름을 보여 주는 시연 화면입니다. 모든 인물과 법인은 가상이고, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요.")
