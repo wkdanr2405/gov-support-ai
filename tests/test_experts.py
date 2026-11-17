@@ -62,3 +62,27 @@ def test_db_register_approve_and_requests_are_session_local():
         register_expert(a, "가", "나", "세무사", 5, "소개", [], ["전국"], ["화상"])
     add_request(a, "DEMO-AAAAAA", new_id, "둘 다", "화상", "메모", "본문", b"%PDF")
     assert list_requests(a, new_id)[0]["receipt"] == "DEMO-AAAAAA" and list_requests(b, new_id) == []
+
+
+def test_auth_accounts_and_password_hash():
+    from src.auth import DEMO_PASSWORD, accounts, hash_pw, login
+    from src.experts.db import new_db, register_expert
+    db = new_db()
+    assert [a["id"] for a in accounts(db, "기업")] == ["corp-1", "corp-2"] and [a["id"] for a in accounts(db, "운영자")] == ["admin-1"]
+    assert len(accounts(db, "세무사/회계사")) == 6
+    assert login(db, "기업", "corp-1", DEMO_PASSWORD) == {"role": "기업", "id": "corp-1", "name": "가상전자(주) 대표"}
+    assert login(db, "기업", "corp-1", "") is None and login(db, "기업", "corp-9", DEMO_PASSWORD) is None
+    assert hash_pw(DEMO_PASSWORD) != DEMO_PASSWORD
+    new_id = register_expert(db, "최가온 세무사", "다온", "세무사", 5, "소개", ["rnd_credit"], ["전국"], ["화상"])
+    assert login(db, "세무사/회계사", new_id, DEMO_PASSWORD) is None          # 승인 전에는 로그인 불가
+
+
+def test_requests_are_isolated_by_expert_and_by_client():
+    from src.experts.db import add_request, list_requests, list_requests_by_client, new_db
+    db = new_db()
+    add_request(db, "DEMO-000001", "exp-1", "둘 다", "화상", "", "본문1", b"1", "corp-1", "가상전자(주) 대표")
+    add_request(db, "DEMO-000002", "exp-2", "둘 다", "화상", "", "본문2", b"2", "corp-2", "새싹소프트(주) 대표")
+    assert [r["receipt"] for r in list_requests(db, "exp-1")] == ["DEMO-000001"]
+    assert [r["receipt"] for r in list_requests(db, "exp-3")] == []
+    assert [r["receipt"] for r in list_requests_by_client(db, "corp-2")] == ["DEMO-000002"]
+    assert list_requests_by_client(db, "corp-3") == []

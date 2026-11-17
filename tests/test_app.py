@@ -6,10 +6,32 @@ from streamlit.testing.v1 import AppTest
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 
 
-def run():
-    at = AppTest.from_file(APP, default_timeout=120).run()
+CORP = dict(role="기업", id="corp-1", name="가상전자(주) 대표")
+
+
+def run(auth=CORP):
+    """기업 계정으로 이미 로그인한 상태에서 시작한다 (로그인 화면 자체는 아래 로그인 테스트에서 확인)."""
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.session_state["auth"] = dict(auth)
+    at.run()
     at.toggle[0].set_value(False).run()
     return at
+
+
+def fresh():
+    return AppTest.from_file(APP, default_timeout=120).run()
+
+
+def login_ui(at, role, acc, pw="demo1234"):
+    at.radio(key="login_role").set_value(role).run()
+    at.selectbox(key="login_acc").set_value(acc)
+    at.text_input(key="login_pw").set_value(pw)
+    next(b for b in at.button if b.label == "로그인").click().run()
+    return at
+
+
+def md(at):
+    return " ".join(str(m.value) for m in at.markdown)
 
 
 def demo(at=None, name=None):
@@ -143,30 +165,75 @@ def test_sigungu_selector_appears_only_for_capital_area_and_classifies():
     assert not at.exception
 
 
-def test_expert_flow_register_approve_and_inbox():
-    """전문가 등록 신청 → 운영자 승인 → 추천 명단에 포함, 상담 요청 → 전문가의 고객 상담 요청에 나타남."""
-    at = demo()
-    assert len(at.radio(key="expert_pick").options) == 6
-    # 필수 항목 없이 등록하면 안내
-    btn(at, "등록 신청하기").click().run()
-    assert any("입력해 주세요" in e.value or "골라 주세요" in e.value for e in at.error)
-    # 정상 등록 → 승인 대기이므로 아직 명단에 없다
+def test_login_is_required_and_blocks_everything_else():
+    at = fresh()
+    assert not at.exception
+    assert "로그인" in md(at) and "기업 정보 입력" not in md(at)
+    assert not at.metric and not [t for t in at.tabs if t.label == "전문가 연결"]
+
+
+def test_wrong_password_is_rejected_and_role_account_mismatch_too():
+    at = fresh()
+    login_ui(at, "기업", "corp-1", pw="틀린비밀번호")
+    assert any("맞지 않습니다" in e.value for e in at.error) and "auth" not in at.session_state
+    from src.auth import login
+    from src.experts.db import new_db
+    assert login(new_db(), "세무사/회계사", "corp-1", "demo1234") is None      # 기업 아이디로 전문가 로그인 불가
+    assert login(new_db(), "기업", "exp-1", "demo1234") is None
+
+
+def test_corp_sees_company_screen_only_and_expert_sees_expert_screen_only():
+    at = fresh()
+    login_ui(at, "기업", "corp-1")
+    assert not at.exception and "기업 정보 입력" in md(at)
+    assert not [t for t in at.tabs if t.label == "고객 상담 요청"]
+    at = fresh()
+    login_ui(at, "세무사/회계사", "exp-1")
+    assert not at.exception and "기업 정보 입력" not in md(at) and not at.metric
+    assert [t for t in at.tabs if t.label == "고객 상담 요청"]
+    assert "박서윤 세무사" in md(at)
+
+
+def test_request_reaches_only_the_chosen_expert_and_logout_clears_company_data():
+    at = demo()                                                       # 가상전자(주) 대표로 로그인된 상태, ① 예시
+    assert at.text_input(key="rev").value != "0"
+    at.radio(key="expert_pick").set_value("정도현 세무사").run()
+    consent(at).check()
+    btn(at, "상담 요청 보내기").click().run()
+    receipt = next(m.value for m in at.markdown if "DEMO-" in str(m.value))
+    receipt = "DEMO-" + receipt.split("DEMO-")[1][:6]
+    assert any(receipt in str(m.value) for m in at.markdown) and "내가 보낸 상담 요청" in md(at)
+    # 로그아웃: 기업 입력은 지워지고(빈 값), 로그인 화면으로 돌아간다. 전문가 보관함은 접속 동안 남는다.
+    btn(at, "로그아웃").click().run()
+    assert "auth" not in at.session_state and at.session_state["rev"] == "0" and "기업 정보 입력" not in md(at)
+    # 다른 기업 계정에는 보이지 않는다
+    login_ui(at, "기업", "corp-2")
+    assert any("아직 보낸 상담 요청이 없습니다" in c.value for c in at.caption) and receipt not in md(at)
+    btn(at, "로그아웃").click().run()
+    # 요청을 받은 전문가에게는 보이고, 다른 전문가에게는 보이지 않는다
+    login_ui(at, "세무사/회계사", "exp-2")
+    assert receipt in " ".join(e.label for e in at.expander) and "가상전자" in " ".join(e.label for e in at.expander)
+    btn(at, "로그아웃").click().run()
+    login_ui(at, "세무사/회계사", "exp-1")
+    assert not [e for e in at.expander if receipt in e.label] and "아직 들어온 고객 상담 요청이 없습니다" in " ".join(i.value for i in at.info)
+
+
+def test_expert_signup_admin_approval_then_login():
+    at = fresh()
+    assert "최가온 세무사" not in [o for o in at.selectbox(key="login_acc").options]
     next(t for t in at.text_input if t.label.startswith("이름")).set_value("최가온 세무사")
     next(t for t in at.text_input if t.label.startswith("소속")).set_value("세무회계 다온 · 대구")
     next(t for t in at.text_area if t.label == "소개").set_value("제조업 연구개발비 공제를 주로 맡습니다.")
     next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
     next(m for m in at.multiselect if m.label == "활동 지역").set_value(["영남권"])
     next(m for m in at.multiselect if m.label == "상담 방식").set_value(["화상"])
-    btn(at, "등록 신청하기").click().run()
+    btn(at, "가입 신청하기").click().run()
     assert any("접수되었습니다" in s.value for s in at.success)
-    assert len(at.radio(key="expert_pick").options) == 6
-    # 운영자 승인 → 7명
+    at.radio(key="login_role").set_value("세무사/회계사").run()
+    assert "exp-7" not in at.selectbox(key="login_acc").options          # 승인 전에는 로그인 불가
+    login_ui(at, "운영자", "admin-1")
+    assert not at.exception and "기업 정보 입력" not in md(at)
     btn(at, "자격 확인 완료 · 승인").click().run()
-    assert not at.exception and len(at.radio(key="expert_pick").options) == 7
-    # 상담 요청 → 고객 상담 요청에 나타남
-    at.radio(key="expert_pick").set_value("최가온 세무사").run()
-    consent(at).check()
-    btn(at, "상담 요청 보내기").click().run()
-    assert not at.exception
-    at.selectbox(key="pro_who").select("최가온 세무사").run()
-    assert any("DEMO-" in e.label for e in at.expander)
+    btn(at, "로그아웃").click().run()
+    login_ui(at, "세무사/회계사", "exp-7")
+    assert not at.exception and "최가온 세무사" in md(at)

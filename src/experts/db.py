@@ -16,7 +16,7 @@ CREATE TABLE experts (id TEXT PRIMARY KEY, name TEXT NOT NULL, firm TEXT NOT NUL
                       years INTEGER NOT NULL, intro TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', seq INTEGER NOT NULL);
 CREATE TABLE expert_items (expert_id TEXT NOT NULL REFERENCES experts(id), kind TEXT NOT NULL, value TEXT NOT NULL);
 CREATE TABLE requests (receipt TEXT PRIMARY KEY, expert_id TEXT NOT NULL REFERENCES experts(id), topic TEXT, channel TEXT,
-                       memo TEXT, brief TEXT, pdf BLOB, seq INTEGER NOT NULL);
+                       memo TEXT, brief TEXT, pdf BLOB, client_id TEXT NOT NULL DEFAULT '', client_name TEXT NOT NULL DEFAULT '', seq INTEGER NOT NULL);
 """
 
 
@@ -80,12 +80,26 @@ def approve_expert(conn: sqlite3.Connection, expert_id: str) -> None:
     conn.commit()
 
 
-def add_request(conn: sqlite3.Connection, receipt: str, expert_id: str, topic: str, channel: str, memo: str, brief: str, pdf: bytes) -> None:
+def add_request(conn: sqlite3.Connection, receipt: str, expert_id: str, topic: str, channel: str, memo: str, brief: str, pdf: bytes,
+                client_id: str = "", client_name: str = "") -> None:
     seq = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM requests").fetchone()[0]
-    conn.execute("INSERT OR REPLACE INTO requests VALUES (?,?,?,?,?,?,?,?)", (receipt, expert_id, topic, channel, memo, brief, pdf, seq))
+    conn.execute("INSERT OR REPLACE INTO requests VALUES (?,?,?,?,?,?,?,?,?,?)",
+                 (receipt, expert_id, topic, channel, memo, brief, pdf, client_id, client_name, seq))
     conn.commit()
 
 
+def _req(r) -> dict:
+    return dict(receipt=r[0], topic=r[1], channel=r[2], memo=r[3], brief=r[4], pdf=r[5], expert_id=r[6], client_name=r[7])
+
+
+_COLS = "receipt, topic, channel, memo, brief, pdf, expert_id, client_name"
+
+
 def list_requests(conn: sqlite3.Connection, expert_id: str) -> list[dict]:
-    rows = conn.execute("SELECT receipt, topic, channel, memo, brief, pdf FROM requests WHERE expert_id = ? ORDER BY seq DESC", (expert_id,)).fetchall()
-    return [dict(receipt=r[0], topic=r[1], channel=r[2], memo=r[3], brief=r[4], pdf=r[5]) for r in rows]
+    """전문가 한 명에게 들어온 요청 (그 전문가 본인 화면에서만 사용)."""
+    return [_req(r) for r in conn.execute(f"SELECT {_COLS} FROM requests WHERE expert_id = ? ORDER BY seq DESC", (expert_id,))]
+
+
+def list_requests_by_client(conn: sqlite3.Connection, client_id: str) -> list[dict]:
+    """기업 한 곳이 보낸 요청 (그 기업 본인 화면에서만 사용)."""
+    return [_req(r) for r in conn.execute(f"SELECT {_COLS} FROM requests WHERE client_id = ? ORDER BY seq DESC", (client_id,))]

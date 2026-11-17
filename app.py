@@ -22,8 +22,10 @@ from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.tax_engine.regions import classify, sigungu_options
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
-from src.experts import CREDIT_NAMES, INDUSTRY_NAMES, REGION_GROUP, STEPS, build_brief, load_experts, rank_experts, receipt_no
-from src.experts.db import add_request, approve_expert, list_experts, list_requests, new_db, register_expert
+from src.auth import ROLE_CORP, ROLE_EXPERT
+from src.ui_pro import VIRTUAL_NOTICE, render_admin_home, render_expert_home, render_login
+from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no
+from src.experts.db import add_request, list_requests_by_client, new_db
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_brief_pdf, build_pdf
@@ -196,60 +198,32 @@ for k in KEYS:
     st.session_state.setdefault(k, state_value(BLANK, k))
 
 edb = st.session_state.setdefault("expert_db", new_db())   # 전문가 명단 데이터베이스 (이 접속 동안만 메모리에 있음)
-# 화면 맨 위 선택: 기업 사용자 화면과 세무사·회계사 화면을 독립해서 보여 준다 (두 화면은 서로 입력값을 요구하지 않는다)
-top_cust, top_pro = st.tabs(["기업", "세무사 / 회계사"])
+# ---------- 로그인 (시연용 가상 로그인) ----------
+# 로그인하지 않으면 아래 어떤 화면도 실행되지 않는다. 역할마다 실행되는 화면 코드가 달라서 기업과 전문가는 서로의 화면·정보를 볼 수 없다.
+auth = st.session_state.get("auth")
+if not auth:
+    render_login(edb)
+    st.stop()
 
-with top_pro:
-    st.caption("전문가·운영자 쪽 흐름을 보여 주는 시연 화면입니다. 모든 인물과 법인은 가상이고, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요.")
-    p1, p2, p3 = st.tabs(["전문가 등록 신청", "운영자 승인", "고객 상담 요청"])
-    with p1:
-        st.write("실제 서비스에서는 자격번호를 한국세무사회·한국공인회계사회 공개 조회로 확인한 뒤 승인합니다. 여기서는 승인 절차만 보여 줍니다.")
-        with st.form("pro_register"):
-            r1, r2 = st.columns(2)
-            pn = r1.text_input("이름 (가명)", placeholder="예: 최가온 세무사")
-            pf = r2.text_input("소속 (가상 법인명)", placeholder="예: 세무회계 다온 · 대구")
-            r3, r4 = st.columns(2)
-            plic = r3.radio("자격", ["세무사", "공인회계사"], horizontal=True)
-            pyears = r4.number_input("경력 (년)", min_value=0, max_value=60, value=5, step=1)
-            pspec = st.multiselect("전문 분야", list(CREDIT_NAMES), format_func=CREDIT_NAMES.get, placeholder="선택하세요")
-            pcol1, pcol2 = st.columns(2)
-            preg = pcol1.multiselect("활동 지역", ["전국"] + sorted(set(REGION_GROUP.values())), placeholder="선택하세요")
-            pch = pcol2.multiselect("상담 방식", ["화상", "전화", "대면"], placeholder="선택하세요")
-            pind = st.multiselect("경험 업종 (비우면 전 업종)", list(INDUSTRY_NAMES), format_func=INDUSTRY_NAMES.get, placeholder="선택하세요")
-            pintro = st.text_area("소개", height=80, placeholder="주로 맡는 업무를 한두 문장으로 적어 주세요")
-            reg_sent = st.form_submit_button("등록 신청하기")
-        if reg_sent:
-            try:
-                new_id = register_expert(edb, pn, pf, plic, int(pyears), pintro, pspec, preg, pch, pind)
-                st.success(f"등록 신청이 접수되었습니다 ({new_id}). '운영자 승인' 탭에서 승인하면 추천 명단에 나타납니다.")
-            except ValueError as err:
-                st.error(str(err))
-    with p2:
-        pending = list_experts(edb, "pending")
-        if not pending:
-            st.info("승인을 기다리는 등록 신청이 없습니다. '전문가 등록 신청' 탭에서 신청해 보세요.")
-        for pe in pending:
-            with st.container(border=True):
-                st.markdown(f"**{pe['name']}** ({pe['license']}) · {pe['firm']} · 경력 {pe['years']}년")
-                st.caption("분야: " + ", ".join(CREDIT_NAMES.get(x, x) for x in pe["specialties"]) + " / 지역: " + ", ".join(pe["regions"]) +
-                           " / 방식: " + ", ".join(pe["channels"]))
-                st.write(pe["intro"])
-                if st.button("자격 확인 완료 · 승인", key=f"ap_{pe['id']}"):
-                    approve_expert(edb, pe["id"])
-                    st.rerun()
-        st.caption(f"승인된 전문가: {len(list_experts(edb, 'approved'))}명")
-    with p3:
-        approved = list_experts(edb, "approved")
-        who = st.selectbox("전문가 선택", [x["name"] for x in approved], key="pro_who")
-        me = next(x for x in approved if x["name"] == who)
-        inbox = list_requests(edb, me["id"])
-        if not inbox:
-            st.info("아직 들어온 고객 상담 요청이 없습니다. '전문가 연결' 탭에서 이 전문가를 골라 상담을 요청하면 여기에 나타납니다.")
-        for rq in inbox:
-            with st.expander(f"{rq['receipt']} · {rq['topic']} · {rq['channel']}", expanded=True):
-                st.text(rq["brief"])
-                st.download_button("전달 자료 PDF", rq["pdf"], file_name=f"상담_전달_자료_{rq['receipt']}.pdf", mime="application/pdf",
-                                   key=f"pdf_{rq['receipt']}")
+
+def do_logout():
+    """로그아웃: 기업 입력·결과·화면 상태를 모두 지운다. 전문가 명단·상담 요청 보관함(expert_db)만 접속 동안 남긴다."""
+    for k in list(st.session_state.keys()):
+        if k != "expert_db":
+            del st.session_state[k]
+
+
+bar1, bar2 = st.columns([5, 1])
+bar1.markdown(f"**{auth['name']}** · {auth['role']} 계정으로 로그인됨")
+bar2.button("로그아웃", key="logout", on_click=do_logout)
+if auth["role"] != ROLE_CORP:           # 전문가·운영자는 기업 입력·결과 화면 코드가 실행되기 전에 여기서 끝난다
+    st.caption(VIRTUAL_NOTICE)
+    if auth["role"] == ROLE_EXPERT:
+        render_expert_home(edb, auth)
+    else:
+        render_admin_home(edb)
+    st.stop()
+top_cust = st.container()
 
 with top_cust:
     summary = st.container()     # 계산이 끝난 뒤 맨 위에 결과 요약을 채운다
@@ -543,11 +517,19 @@ with top_cust:
                 st.markdown("\n".join(f"{i}. {s_}" for i, s_ in enumerate(STEPS, 1)))
                 sent_pdf = build_brief_pdf(BASIS, company, res, docs, out["items"], expert=chosen, topic=topic, channel=channel,
                                            memo=memo, receipt=no)
-                add_request(edb, no, chosen["id"], topic, channel, memo, brief, sent_pdf)    # '세무사 / 회계사' 탭의 '고객 상담 요청'에 나타남
+                add_request(edb, no, chosen["id"], topic, channel, memo, brief, sent_pdf, auth["id"], auth["name"])    # 그 전문가 계정의 '고객 상담 요청'에 나타남
                 st.download_button("접수한 상담 전달 자료 PDF 내려받기", sent_pdf,
                                    file_name=f"상담_전달_자료_{no}.pdf", mime="application/pdf")
-                st.caption("맨 위 '세무사 / 회계사' 탭의 '고객 상담 요청'에서 이 요청을 전문가 입장에서 볼 수 있습니다.")
+                st.caption("이 요청은 선택한 전문가 계정의 '고객 상담 요청'에만 전달됩니다 (로그아웃 후 그 전문가로 로그인하면 볼 수 있습니다).")
                 st.caption("신청·신고는 전문가와 상의해 진행하세요.")
+
+        # 4) 내가 보낸 상담 요청 (이 기업 계정이 보낸 것만 보인다)
+        st.markdown("**4. 내가 보낸 상담 요청**")
+        mine = list_requests_by_client(edb, auth["id"])
+        if not mine:
+            st.caption("아직 보낸 상담 요청이 없습니다.")
+        for rq in mine:
+            st.write(f"· {rq['receipt']} · {rq['topic']} · {rq['channel']} · 요청 전달 전문가: {next((e['name'] for e in load_experts(edb) if e['id'] == rq['expert_id']), rq['expert_id'])}")
 
     # ---------- 맨 위 결과 요약 (위에서 만들어 둔 자리에 채운다) ----------
     with summary:
