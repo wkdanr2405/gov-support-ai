@@ -8,7 +8,7 @@ from src.auth import DEMO_HINT, DEMO_PASSWORD, ROLE_ADMIN, ROLE_CORP, ROLE_EXPER
 from datetime import date
 
 from src.experts import CREDIT_NAMES, ETC, INDUSTRY_NAMES, join_etc, show_etc, split_etc
-from src.experts.db import (KINDS, approve_expert, get_company, list_experts, list_requests, register_company, register_expert,
+from src.experts.db import (KINDS, approve_expert, get_company, list_companies, list_experts, list_requests, register_company, register_expert,
                             update_company, update_expert, virtual_contact)
 
 VIRTUAL_NOTICE = "모든 인물과 법인은 시연을 위해 지어낸 가상의 정보이며, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요."
@@ -157,11 +157,15 @@ def render_expert_home(edb, auth: dict) -> None:
                     st.error(str(err))
 
 
+ORIGIN_LABEL = {"seed": "가상 시연 데이터", "signup": "회원가입"}
+
+
 def render_admin_home(edb) -> None:
-    """운영자 화면: 법인 가입 신청 승인."""
+    """운영자 화면: 법인 회원가입 승인, 그리고 승인된 기업·법인 현황 (가상 시연 데이터와 회원가입 계정을 구분해 표시)."""
     pending = list_experts(edb, "pending")
+    st.markdown("##### 승인 대기 (회계법인/세무법인 회원가입)")
     if not pending:
-        st.info("승인을 기다리는 가입 신청이 없습니다. 로그아웃 후 로그인 화면의 '가입 신청'에서 신청해 볼 수 있습니다.")
+        st.info("승인을 기다리는 회원가입이 없습니다. 로그아웃 후 '회원가입' 탭에서 회계법인/세무법인으로 가입해 볼 수 있습니다.")
     for pe in pending:
         with st.container(border=True):
             st.markdown(f"**{pe['name']}** ({pe['kind']}) · 전문 인력 {pe['staff']}명 · 업력 {pe['years']}년")
@@ -170,4 +174,15 @@ def render_admin_home(edb) -> None:
             if st.button("법인 등록 확인 완료 · 승인", key=f"ap_{pe['id']}"):
                 approve_expert(edb, pe["id"])
                 st.rerun()
-    st.caption(f"승인된 법인: {len(list_experts(edb, 'approved'))}곳")
+
+    corps, firms = list_companies(edb), list_experts(edb, "approved")
+    n_seed = lambda rows: sum(1 for r in rows if r["origin"] == "seed")
+    st.markdown("##### 승인된 기업")
+    st.caption(f"{len(corps)}곳 · 가상 시연 데이터 {n_seed(corps)}곳 (Claude가 시연용으로 만든 계정) · 회원가입 {len(corps) - n_seed(corps)}곳. 기업은 회원가입 즉시 승인됩니다.")
+    st.dataframe([{"구분": ORIGIN_LABEL[c["origin"]], "기업명": c["name"], "이메일 (가상)": c["email"], "연락처 (가상)": c["phone"]} for c in corps],
+                 hide_index=True, use_container_width=True)
+    st.markdown("##### 승인된 회계법인/세무법인")
+    st.caption(f"{len(firms)}곳 · 가상 시연 데이터 {n_seed(firms)}곳 (Claude가 시연용으로 만든 법인) · 회원가입 후 승인 {len(firms) - n_seed(firms)}곳")
+    st.dataframe([{"구분": ORIGIN_LABEL[f["origin"]], "법인명": f["name"], "유형": f["kind"], "설립 연도": f["founded"], "전문 인력(명)": f["staff"],
+                   "전문 분야": ", ".join(CREDIT_NAMES.get(x, x) for x in show_etc(f["specialties"]))} for f in firms],
+                 hide_index=True, use_container_width=True)

@@ -324,3 +324,25 @@ def test_company_signup_login_profile_edit_and_contact_reaches_corporation():
     got = list_requests(edb, exp_id)[0]
     assert "해든푸드(주)" in got["brief"] and "haeden2@example.com" in got["brief"] and "010-0000-0003" in got["brief"]
     assert got["pdf"].startswith(b"%PDF") and got["client_name"] == "해든푸드(주)"
+
+
+def test_admin_sees_approved_companies_and_firms_split_by_origin():
+    at = fresh()
+    login_ui(at, "운영자", "admin-1")
+    assert not at.exception and "기업 정보 입력" not in md(at)
+    corp_df, firm_df = at.dataframe[0].value, at.dataframe[1].value
+    assert list(corp_df["기업명"]) == ["가상전자(주)", "새싹소프트(주)"] and set(corp_df["구분"]) == {"가상 시연 데이터"}
+    assert len(firm_df) == 6 and set(firm_df["구분"]) == {"가상 시연 데이터"} and "새빛세무법인" in list(firm_df["법인명"])
+    assert any("가상 시연 데이터 2곳" in c.value for c in at.caption) and any("가상 시연 데이터 6곳" in c.value for c in at.caption)
+    # 회원가입한 기업, 승인된 법인은 '회원가입'으로 구분되어 나타나고, 승인 전 법인은 목록에 없다
+    from src.experts.db import approve_expert, register_company, register_expert
+    edb = at.session_state["expert_db"]
+    register_company(edb, "해든푸드(주)", "haeden@example.com", "010-0000-0003")
+    ok = register_expert(edb, "가온세무법인", "세무법인", 2021, 7, "소개", ["rnd_credit"], ["화상"])
+    register_expert(edb, "대기회계법인", "회계법인", 2021, 7, "소개", ["rnd_credit"], ["화상"])
+    approve_expert(edb, ok)
+    at.run()
+    corp_df, firm_df = at.dataframe[0].value, at.dataframe[1].value
+    assert dict(zip(corp_df["기업명"], corp_df["구분"]))["해든푸드(주)"] == "회원가입"
+    assert dict(zip(firm_df["법인명"], firm_df["구분"]))["가온세무법인"] == "회원가입" and "대기회계법인" not in list(firm_df["법인명"])
+    assert "대기회계법인" in md(at)                                                      # 승인 대기 쪽에는 보인다

@@ -16,18 +16,18 @@ LISTS = ("specialties", "channels", "industries")
 KINDS = ["회계법인", "세무법인", "기타"]
 SCHEMA = """
 CREATE TABLE experts (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, founded INTEGER NOT NULL, staff INTEGER NOT NULL,
-                      intro TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', seq INTEGER NOT NULL);
-CREATE TABLE corporations (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL, seq INTEGER NOT NULL);
+                      intro TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', seq INTEGER NOT NULL, origin TEXT NOT NULL DEFAULT 'signup');
+CREATE TABLE corporations (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL, seq INTEGER NOT NULL, origin TEXT NOT NULL DEFAULT 'signup');
 CREATE TABLE expert_items (expert_id TEXT NOT NULL REFERENCES experts(id), kind TEXT NOT NULL, value TEXT NOT NULL);
 CREATE TABLE requests (receipt TEXT PRIMARY KEY, expert_id TEXT NOT NULL REFERENCES experts(id), topic TEXT, channel TEXT,
                        memo TEXT, brief TEXT, pdf BLOB, client_id TEXT NOT NULL DEFAULT '', client_name TEXT NOT NULL DEFAULT '', seq INTEGER NOT NULL);
 """
 
 
-def _insert(conn: sqlite3.Connection, e: dict, status: str) -> None:
+def _insert(conn: sqlite3.Connection, e: dict, status: str, origin: str = "signup") -> None:
     seq = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM experts").fetchone()[0]
-    conn.execute("INSERT INTO experts VALUES (?,?,?,?,?,?,?,?)",
-                 (e["id"], e["name"], e["kind"], int(e["founded"]), int(e["staff"]), e["intro"], status, seq))
+    conn.execute("INSERT INTO experts VALUES (?,?,?,?,?,?,?,?,?)",
+                 (e["id"], e["name"], e["kind"], int(e["founded"]), int(e["staff"]), e["intro"], status, seq, origin))
     conn.executemany("INSERT INTO expert_items VALUES (?,?,?)",
                      [(e["id"], k, v) for k in LISTS for v in e.get(k, [])])
 
@@ -38,10 +38,10 @@ def new_db() -> sqlite3.Connection:
     conn.executescript(SCHEMA)
     seed = yaml.safe_load(SEED.read_text(encoding="utf-8"))
     for e in seed["experts"]:
-        _insert(conn, e, "approved")
+        _insert(conn, e, "approved", "seed")
     for c in seed["companies"]:
-        conn.execute("INSERT INTO corporations VALUES (?,?,?,?,?)", (c["id"], c["name"], c["email"], c["phone"],
-                                                                   conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM corporations").fetchone()[0]))
+        conn.execute("INSERT INTO corporations VALUES (?,?,?,?,?,?)", (c["id"], c["name"], c["email"], c["phone"],
+                                                                     conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM corporations").fetchone()[0], "seed"))
     conn.commit()
     return conn
 
@@ -53,11 +53,11 @@ def shared_db() -> sqlite3.Connection:
 
 
 def list_experts(conn: sqlite3.Connection, status: str | None = "approved") -> list[dict]:
-    q = "SELECT id, name, kind, founded, staff, intro, status FROM experts" + (" WHERE status = ?" if status else "") + " ORDER BY seq"
+    q = "SELECT id, name, kind, founded, staff, intro, status, origin FROM experts" + (" WHERE status = ?" if status else "") + " ORDER BY seq"
     rows = conn.execute(q, (status,) if status else ()).fetchall()
     out = []
-    for id_, name, kind, founded, staff, intro, st_ in rows:
-        e = dict(id=id_, name=name, kind=kind, founded=founded, staff=staff, years=max(0, date.today().year - founded), intro=intro, status=st_)
+    for id_, name, kind, founded, staff, intro, st_, origin in rows:
+        e = dict(id=id_, name=name, kind=kind, founded=founded, staff=staff, years=max(0, date.today().year - founded), intro=intro, status=st_, origin=origin)
         for k in LISTS:
             e[k] = [r[0] for r in conn.execute("SELECT value FROM expert_items WHERE expert_id = ? AND kind = ? ORDER BY rowid", (id_, k))]
         out.append(e)
@@ -170,7 +170,7 @@ def register_company(conn: sqlite3.Connection, name: str, email: str, phone: str
     n = conn.execute("SELECT COUNT(*) FROM corporations").fetchone()[0] + 1
     id_ = f"corp-{n}"
     seq = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM corporations").fetchone()[0]
-    conn.execute("INSERT INTO corporations VALUES (?,?,?,?,?)", (id_, name.strip(), email.strip().lower(), phone.strip(), seq))
+    conn.execute("INSERT INTO corporations VALUES (?,?,?,?,?,?)", (id_, name.strip(), email.strip().lower(), phone.strip(), seq, "signup"))
     conn.commit()
     return id_
 
@@ -193,3 +193,9 @@ def get_company(conn: sqlite3.Connection, company_id: str) -> dict | None:
 def find_company_by_name(conn: sqlite3.Connection, name: str) -> dict | None:
     r = conn.execute("SELECT id FROM corporations WHERE REPLACE(LOWER(name), ' ', '') = ?", (name.replace(" ", "").lower(),)).fetchone()
     return get_company(conn, r[0]) if r else None
+
+
+def list_companies(conn: sqlite3.Connection) -> list[dict]:
+    """가입된 기업 전체 (운영자 화면 전용). origin: 'seed'(Claude가 만든 가상 기업) / 'signup'(회원가입으로 만든 계정)."""
+    return [dict(id=r[0], name=r[1], email=r[2], phone=r[3], origin=r[4])
+            for r in conn.execute("SELECT id, name, email, phone, origin FROM corporations ORDER BY seq")]
