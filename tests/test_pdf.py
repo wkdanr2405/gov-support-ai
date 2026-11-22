@@ -35,7 +35,8 @@ def test_brief_pdf_is_single_page_with_all_documents():
     ids = ("integrated_employment", "rnd_credit", "disaster_loss", "startup_sme_exemption", "sme_special_reduction")
     res = {"total_first_year": 6800, "overlap_note": "중복 적용 배제: 예시 문장입니다.",
            "credits": [{"id": i, "name": i, "status": "computed", "in_total": True, "amount_first_year": 100} for i in ids]}
-    co = dict(industry="전자부품 제조업", sido="서울", founded="2023-03-15", is_sme=True, ep=10, ec=13, yp=0, yc=2)
+    co = dict(name="가상전자(주)", email="contact1@example.com", phone="010-0000-0001", industry="전자부품 제조업", sido="서울",
+              founded="2023-03-15", is_sme=True, ep=10, ec=13, yp=0, yc=2)               # 기업명·가상 연락처 행이 늘어도 1페이지
     pdf = build_brief_pdf("입력하신 값 기준 예시", co, res, required_documents(res), M, expert=load_experts()[0],
                           topic="둘 다", channel="화상", memo="일정 문의 " * 20, receipt="DEMO-ABC123")
     assert pdf[:4] == b"%PDF" and len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 1

@@ -4,11 +4,12 @@
 """
 import streamlit as st
 
-from src.auth import DEMO_PASSWORD, ROLE_ADMIN, ROLE_CORP, ROLE_EXPERT, ROLES, accounts, login
+from src.auth import DEMO_HINT, DEMO_PASSWORD, ROLE_ADMIN, ROLE_CORP, ROLE_EXPERT, ROLES, login
 from datetime import date
 
 from src.experts import CREDIT_NAMES, ETC, INDUSTRY_NAMES, join_etc, show_etc, split_etc
-from src.experts.db import KINDS, approve_expert, list_experts, list_requests, register_expert, update_expert
+from src.experts.db import (KINDS, approve_expert, get_company, list_experts, list_requests, register_company, register_expert,
+                            update_company, update_expert, virtual_contact)
 
 VIRTUAL_NOTICE = "모든 인물과 법인은 시연을 위해 지어낸 가상의 정보이며, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요."
 
@@ -49,38 +50,81 @@ def _profile_form(form_key: str, d: dict, submit_label: str) -> dict | None:
 BLANK_PROFILE = dict(name="", kind="회계법인", founded=2020, staff=5, intro="", specialties=[], channels=[], industries=[])
 
 
+def _company_form(fk: str, d: dict, submit_label: str) -> dict | None:
+    """기업 회원가입과 기업 프로필 수정이 함께 쓰는 입력 화면. 이메일·연락처는 가상 형식만 받는다."""
+    pn = st.text_input("기업명 (가상)", value=d["name"], placeholder="예: 가상전자(주)", key=f"{fk}_name")
+    c1, c2 = st.columns(2)
+    pe = c1.text_input("이메일 (가상)", value=d["email"], placeholder="corp3@example.com", key=f"{fk}_email",
+                       help="시연용이라 example.com 형식의 가상 이메일만 입력할 수 있습니다.")
+    pp = c2.text_input("연락처 (가상)", value=d["phone"], placeholder="010-0000-0003", key=f"{fk}_phone",
+                       help="시연용이라 010-0000-XXXX 형식의 가상 번호만 입력할 수 있습니다.")
+    st.caption("회계법인/세무법인에 상담 요청을 보내면 이 이메일·연락처가 전달 자료(PDF)에 담겨 법인이 연락할 수 있습니다. 실제 이메일·연락처는 입력하지 마세요.")
+    if not st.button(submit_label, key=f"{fk}_submit"):
+        return None
+    return dict(name=pn, email=pe, phone=pp)
+
+
+def render_company_profile(edb, auth: dict) -> None:
+    """기업 본인 프로필: 회계법인/세무법인 프로필과 같은 방식(현재 값이 채워진 입력 화면 → 저장)."""
+    me = get_company(edb, auth["id"])
+    with st.expander("내 기업 프로필 (기업명 · 이메일 · 연락처 수정)"):
+        if st.session_state.pop("profile_saved", False):
+            st.success("프로필이 저장되었습니다.")
+        if me:
+            got = _company_form(f"corp_edit_{me['id']}", me, "프로필 저장")
+            if got:
+                try:
+                    update_company(edb, me["id"], **got)
+                    st.session_state["auth"] = {**auth, "name": got["name"].strip()}
+                    st.session_state["profile_saved"] = True
+                    st.rerun()
+                except ValueError as err:
+                    st.error(str(err))
+
+
 def render_register_form(edb) -> None:
-    """법인 가입 신청 (로그인 전에 누구나 낼 수 있고, 운영자가 승인해야 로그인할 수 있다)."""
+    """회원가입: 기업은 바로 계정이 만들어지고, 회계법인/세무법인은 운영자가 승인해야 로그인할 수 있다."""
+    role = st.radio("가입 유형", [ROLE_CORP, ROLE_EXPERT], key="signup_role", horizontal=True)
+    if role == ROLE_CORP:
+        em, ph = virtual_contact(edb)
+        got = _company_form("corp_signup", dict(name="", email=em, phone=ph), "회원가입")
+        if got:
+            try:
+                register_company(edb, **got)
+                st.success(f"회원가입이 완료되었습니다. '로그인' 탭에서 기업명 '{got['name'].strip()}'과 비밀번호 {DEMO_PASSWORD}로 로그인하세요.")
+            except ValueError as err:
+                st.error(str(err))
+        return
     st.write("실제 서비스에서는 법인 등록 여부를 공개 자료로 확인한 뒤 승인합니다. 여기서는 운영자 승인 절차만 보여 줍니다.")
-    got = _profile_form("pro_register", BLANK_PROFILE, "가입 신청하기")
+    got = _profile_form("pro_register", BLANK_PROFILE, "회원가입")
     if got:
         try:
-            new_id = register_expert(edb, **got)
-            st.success(f"가입 신청이 접수되었습니다 ({new_id}). 운영자가 승인하면 '회계법인/세무법인'으로 로그인할 수 있습니다.")
+            register_expert(edb, **got)
+            st.success("회원가입이 접수되었습니다. 운영자가 승인하면 '로그인' 탭에서 법인명으로 로그인할 수 있습니다.")
         except ValueError as err:
             st.error(str(err))
 
 
 def render_login(edb) -> None:
-    """로그인 화면. 성공하면 st.session_state['auth']에 역할·아이디·이름을 넣고 다시 그린다."""
-    st.markdown("##### 로그인")
-    st.caption("로그인해야 서비스를 이용할 수 있습니다. 기업과 회계법인/세무법인은 서로의 화면과 정보를 볼 수 없고, 기업이 보낸 상담 요청만 법인에 전달됩니다.")
-    role = st.radio("로그인 유형", ROLES, key="login_role", horizontal=True)
-    opts = accounts(edb, role)
-    names = {a["id"]: a["name"] + (f" · {a['kind']}" if a.get("kind") else "") for a in opts}
-    with st.form("login_form"):
-        acc = st.selectbox("계정", list(names), format_func=names.get, key="login_acc")
-        pw = st.text_input("비밀번호", type="password", key="login_pw", placeholder="시연용 비밀번호")
-        go = st.form_submit_button("로그인")
-    st.caption(f"시연용 가상 계정입니다. 모든 계정의 비밀번호는 {DEMO_PASSWORD} 입니다.")
-    if go:
-        got = login(edb, role, acc, pw)
-        if got:
-            st.session_state["auth"] = got
-            st.rerun()
-        else:
-            st.error("계정 또는 비밀번호가 맞지 않습니다.")
-    with st.expander("회계법인/세무법인이신가요? 가입 신청"):
+    """로그인·회원가입 화면. 성공하면 st.session_state['auth']에 역할·아이디·이름을 넣고 다시 그린다.
+    계정 목록은 보여 주지 않는다: 기업명·법인명을 직접 입력해야 한다."""
+    tab_in, tab_up = st.tabs(["로그인", "회원가입"])
+    with tab_in:
+        st.caption("로그인해야 서비스를 이용할 수 있습니다. 기업과 회계법인/세무법인은 서로의 화면과 정보를 볼 수 없고, 기업이 보낸 상담 요청만 법인에 전달됩니다.")
+        role = st.radio("로그인 유형", ROLES, key="login_role", horizontal=True)
+        with st.form("login_form"):
+            acc = st.text_input("계정 (기업명 · 법인명)", key="login_acc", placeholder={ROLE_CORP: "기업명을 입력하세요", ROLE_EXPERT: "법인명을 입력하세요"}.get(role, "운영자"))
+            pw = st.text_input("비밀번호", type="password", key="login_pw", placeholder="시연용 비밀번호")
+            go = st.form_submit_button("로그인")
+        st.caption(f"{DEMO_HINT}. 모든 계정의 비밀번호는 {DEMO_PASSWORD} 입니다.")
+        if go:
+            got = login(edb, role, acc, pw)
+            if got:
+                st.session_state["auth"] = got
+                st.rerun()
+            else:
+                st.error("계정 또는 비밀번호가 맞지 않습니다.")
+    with tab_up:
         render_register_form(edb)
 
 

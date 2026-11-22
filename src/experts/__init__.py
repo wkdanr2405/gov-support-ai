@@ -70,7 +70,10 @@ def build_brief(basis: str, company: dict, res: dict, docs: list[dict], matches:
                 topic: str | None = None, memo: str = "") -> str:
     """전문가에게 건넬 요약 글. 금액은 엔진 결과(만원)를 원 단위로만 바꿔 옮긴다."""
     lines = [f"[상담 전달 자료] {basis}", "",
-             "■ 기업 (입력값)",
+             "■ 기업 (입력값)"]
+    if company.get("name"):
+        lines.append(f"- 기업명: {company['name']} / 이메일: {company.get('email', '-')} / 연락처: {company.get('phone', '-')} (가상 정보)")
+    lines += [
              f"- 업종: {company['industry']} / 소재지: {company['sido']} / 설립: {company['founded']}",
              f"- 중소기업 판정: {'해당' if company['is_sme'] else '확인 필요'}",
              f"- 상시근로자: 전년 {company['ep']}명 → 당해 {company['ec']}명 (청년 등 {company['yp']}명 → {company['yc']}명)", "",

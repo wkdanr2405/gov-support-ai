@@ -6,7 +6,7 @@ from streamlit.testing.v1 import AppTest
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 
 
-CORP = dict(role="기업", id="corp-1", name="가상전자(주) 대표")
+CORP = dict(role="기업", id="corp-1", name="가상전자(주)")
 
 
 def run(auth=CORP):
@@ -22,9 +22,13 @@ def fresh():
     return AppTest.from_file(APP, default_timeout=120).run()
 
 
+NAMES = {"corp-1": "가상전자(주)", "corp-2": "새싹소프트(주)", "exp-1": "새빛세무법인", "exp-2": "다온세무법인", "exp-7": "가온세무법인", "admin-1": "운영자"}
+
+
 def login_ui(at, role, acc, pw="demo1234"):
+    """계정은 목록에서 고르지 않고 기업명·법인명을 직접 입력한다 (acc에 id를 주면 이름으로 바꿔 입력)."""
     at.radio(key="login_role").set_value(role).run()
-    at.selectbox(key="login_acc").set_value(acc)
+    at.text_input(key="login_acc").set_value(NAMES.get(acc, acc))
     at.text_input(key="login_pw").set_value(pw)
     next(b for b in at.button if b.label == "로그인").click().run()
     return at
@@ -168,7 +172,10 @@ def test_sigungu_selector_appears_only_for_capital_area_and_classifies():
 def test_login_is_required_and_blocks_everything_else():
     at = fresh()
     assert not at.exception
-    assert "로그인" in md(at) and "기업 정보 입력" not in md(at)
+    assert [t.label for t in at.tabs][:2] == ["로그인", "회원가입"] and "기업 정보 입력" not in md(at)
+    assert not at.selectbox and "가입 신청" not in md(at) + " ".join(e.label for e in at.expander)           # 계정 목록 선택칸·'가입 신청' 표현 없음
+    allt = md(at) + " ".join(c.value for c in at.caption)
+    assert "새싹소프트" not in allt and "다온세무법인" not in allt and "푸른회계법인" not in allt            # 다른 기업·법인 이름이 화면에 없다
     assert not at.metric and not [t for t in at.tabs if t.label == "전문가 연결"]
 
 
@@ -178,8 +185,8 @@ def test_wrong_password_is_rejected_and_role_account_mismatch_too():
     assert any("맞지 않습니다" in e.value for e in at.error) and "auth" not in at.session_state
     from src.auth import login
     from src.experts.db import new_db
-    assert login(new_db(), "회계법인/세무법인", "corp-1", "demo1234") is None      # 기업 아이디로 전문가 로그인 불가
-    assert login(new_db(), "기업", "exp-1", "demo1234") is None
+    assert login(new_db(), "회계법인/세무법인", "가상전자(주)", "demo1234") is None      # 기업 계정으로 법인 로그인 불가
+    assert login(new_db(), "기업", "새빛세무법인", "demo1234") is None
 
 
 def test_corp_sees_company_screen_only_and_expert_sees_expert_screen_only():
@@ -195,7 +202,7 @@ def test_corp_sees_company_screen_only_and_expert_sees_expert_screen_only():
 
 
 def test_request_reaches_only_the_chosen_expert_and_logout_clears_company_data():
-    at = demo()                                                       # 가상전자(주) 대표로 로그인된 상태, ① 예시
+    at = demo()                                                       # 가상전자(주)로 로그인된 상태, ① 예시
     assert at.text_input(key="rev").value != "0"
     at.radio(key="expert_pick").set_value("다온세무법인").run()
     consent(at).check()
@@ -220,16 +227,16 @@ def test_request_reaches_only_the_chosen_expert_and_logout_clears_company_data()
 
 def test_corporation_signup_admin_approval_then_login():
     at = fresh()
-    assert "가온세무법인" not in " ".join(at.selectbox(key="login_acc").options)
+    at.radio(key="signup_role").set_value("회계법인/세무법인").run()
     assert not [m for m in at.multiselect if "지역" in m.label] and not [r for r in at.radio if r.label == "자격"]      # 활동 지역·개인 자격 입력 없음
     next(t for t in at.text_input if t.label.startswith("법인명")).set_value("가온세무법인")
     next(t for t in at.text_area if t.label == "소개").set_value("제조업 연구개발비 공제를 주로 맡습니다.")
     next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
     next(m for m in at.multiselect if m.label == "상담 방식").set_value(["화상"])
-    btn(at, "가입 신청하기").click().run()
+    btn(at, "회원가입").click().run()
     assert any("접수되었습니다" in s.value for s in at.success)
-    at.radio(key="login_role").set_value("회계법인/세무법인").run()
-    assert "exp-7" not in at.selectbox(key="login_acc").options          # 승인 전에는 로그인 불가
+    login_ui(at, "회계법인/세무법인", "가온세무법인")                              # 승인 전에는 로그인 불가
+    assert "auth" not in at.session_state and any("맞지 않습니다" in e.value for e in at.error)
     login_ui(at, "운영자", "admin-1")
     assert not at.exception and "기업 정보 입력" not in md(at) and "가온세무법인" in md(at)
     btn(at, "법인 등록 확인 완료 · 승인").click().run()
@@ -265,7 +272,9 @@ def test_corporation_profile_edit_has_etc_cpa_first_labels_and_persists():
     assert not at.exception and any("프로필이 저장되었습니다" in s.value for s in at.success)
     assert "새빛세무법인(수정)" in md(at)                                              # 위쪽 표시 이름도 바뀜
     btn(at, "로그아웃").click().run()
-    login_ui(at, "회계법인/세무법인", "exp-1")
+    login_ui(at, "회계법인/세무법인", "새빛세무법인")                                    # 계정은 법인명이므로 예전 이름으로는 로그인되지 않는다
+    assert "auth" not in at.session_state
+    login_ui(at, "회계법인/세무법인", "새빛세무법인(수정)")
     assert next(t for t in at.text_area if t.label == "소개").value == "수정한 소개입니다."
     assert next(t for t in at.text_input if t.label == "상담 방식 · 기타 내용 (직접 입력)").value == "채팅"
     assert next(r for r in at.radio if r.label == "법인 유형").value == "기타"
@@ -277,3 +286,41 @@ def test_company_expert_cards_show_corporation_facts_without_region():
     text = " ".join(c.value for c in at.caption)
     assert "세무법인 · 전문 인력 14명" in text and "지역:" not in text and "소재지" not in text.split("회계·세무법인")[1][:60]
     assert at.radio(key="expert_pick").label == "상담받을 법인"
+
+
+def test_company_signup_login_profile_edit_and_contact_reaches_corporation():
+    at = fresh()
+    assert at.radio(key="signup_role").value == "기업"
+    def field(label):
+        return next(t for t in at.text_input if t.label == label)
+    assert field("이메일 (가상)").value.endswith("@example.com")                       # 가상 이메일·연락처가 미리 채워져 있다
+    next(t for t in at.text_input if t.label.startswith("기업명")).set_value("해든푸드(주)")
+    field("이메일 (가상)").set_value("real@gmail.com")
+    btn(at, "회원가입").click().run()
+    assert any("가상 형식" in e.value for e in at.error) and "auth" not in at.session_state       # 실제 이메일 형식은 거부
+    field("이메일 (가상)").set_value("haeden@example.com")
+    field("연락처 (가상)").set_value("010-0000-0003")
+    btn(at, "회원가입").click().run()
+    assert any("회원가입이 완료" in s.value for s in at.success)
+    login_ui(at, "기업", "해든푸드(주)")
+    assert at.session_state["auth"]["name"] == "해든푸드(주)" and "기업 정보 입력" in md(at)
+    # 프로필 수정: 같은 입력 화면에 현재 값이 채워져 있고, 저장하면 계정 이름도 바뀐다
+    assert next(t for t in at.text_input if t.label == "이메일 (가상)" and t.value == "haeden@example.com")
+    prof_email = next(t for t in at.text_input if t.key == "corp_edit_corp-3_email")
+    prof_email.set_value("haeden2@example.com")
+    btn(at, "프로필 저장").click().run()
+    assert any("프로필이 저장되었습니다" in s.value for s in at.success) and not at.exception
+    # 상담 요청을 보내면 법인 쪽 전달 자료에 기업명·이메일·연락처가 담긴다
+    at.radio(key="mode").set_value("가상 기업 시연").run()
+    assert any("haeden2@example.com" in c.value for c in at.caption)
+    consent(at).check()
+    btn(at, "상담 요청 보내기").click().run()
+    assert not at.exception
+    pick = at.radio(key="expert_pick").value
+    from src.experts import load_experts
+    edb = at.session_state["expert_db"]
+    from src.experts.db import list_requests
+    exp_id = next(e["id"] for e in load_experts(edb) if e["name"] == pick)
+    got = list_requests(edb, exp_id)[0]
+    assert "해든푸드(주)" in got["brief"] and "haeden2@example.com" in got["brief"] and "010-0000-0003" in got["brief"]
+    assert got["pdf"].startswith(b"%PDF") and got["client_name"] == "해든푸드(주)"

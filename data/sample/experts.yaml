@@ -57,3 +57,8 @@ experts:
     specialties: ["disaster_loss", "integrated_employment", "sme_special_reduction"]
     industries: []
     intro: "재해손실 공제와 고용 관련 공제, 지방 소재 중소기업의 특별세액감면 검토를 주로 맡는 세무법인입니다."
+
+# 기업 계정(시연용). 이메일은 실제로 쓰이지 않는 example.com, 연락처는 010-0000-XXXX 형식의 가상 값이다.
+companies:
+  - {id: corp-1, name: "가상전자(주)", email: "contact1@example.com", phone: "010-0000-0001"}
+  - {id: corp-2, name: "새싹소프트(주)", email: "contact2@example.com", phone: "010-0000-0002"}

@@ -23,9 +23,9 @@ from src.tax_engine.regions import classify, sigungu_options
 from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
 from src.auth import ROLE_CORP, ROLE_EXPERT
-from src.ui_pro import VIRTUAL_NOTICE, render_admin_home, render_expert_home, render_login
+from src.ui_pro import VIRTUAL_NOTICE, render_admin_home, render_company_profile, render_expert_home, render_login
 from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no, show_etc
-from src.experts.db import add_request, list_requests_by_client, new_db
+from src.experts.db import add_request, get_company, list_requests_by_client, new_db
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_brief_pdf, build_pdf
@@ -223,6 +223,7 @@ if auth["role"] != ROLE_CORP:           # 전문가·운영자는 기업 입력�
     else:
         render_admin_home(edb)
     st.stop()
+render_company_profile(edb, auth)       # 기업 본인 프로필 (기업명·이메일·연락처)
 top_cust = st.container()
 
 with top_cust:
@@ -483,7 +484,8 @@ with top_cust:
         chosen = next(x for x in experts if x["name"] == pick)
 
         # 2) 상담 전달 자료: 계산 결과·준비 서류·추천 공고를 자동으로 묶는다 (1페이지 PDF)
-        company = dict(industry=label.split(" ", 1)[1], sido=sido, founded=founded.isoformat(), is_sme=sme["is_sme"] and not sme_blank,
+        me_corp = get_company(edb, auth["id"])
+        company = dict(name=me_corp["name"], email=me_corp["email"], phone=me_corp["phone"], industry=label.split(" ", 1)[1], sido=sido, founded=founded.isoformat(), is_sme=sme["is_sme"] and not sme_blank,
                        ep=int(ep), ec=int(ec), yp=int(yp), yc=int(yc))
         st.markdown("**2. 상담 전달 자료**")
         preview = build_brief(BASIS, company, res, docs, out["items"])
@@ -495,9 +497,7 @@ with top_cust:
         # 3) 상담 요청
         st.markdown("**3. 상담 요청**")
         with st.form("expert_form"):
-            f1, f2 = st.columns(2)
-            nick = f1.text_input("회사 별칭", placeholder="예: ○○전자")
-            mail = f2.text_input("연락받을 이메일", placeholder="name@example.com")
+            st.caption(f"법인에 전달되는 연락처: {me_corp['email']} · {me_corp['phone']} (위쪽 '내 기업 프로필'에서 고칠 수 있습니다)")
             g1, g2 = st.columns(2)
             topic = g1.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다", "기타 (추가로 전할 말에 적어 주세요)"])
             channel = g2.selectbox("희망 상담 방식", chosen["channels"], format_func=lambda x: show_etc([x])[0])

@@ -148,7 +148,8 @@ def build_brief_pdf(basis: str, company: dict, res: dict, docs: list[dict], matc
                         + ([["추가로 전할 말", memo.strip()[:120]]] if memo.strip() else []), [38 * mm, 140 * mm], head=False, size=8, pad=2),
                   Spacer(1, 2 * mm)]
     story += [Paragraph("1. 기업 조건", st(11)), Spacer(1, 1.5 * mm),
-              table([["업종 · 소재지", f"{company['industry']} · {company['sido']}"], ["설립일", company["founded"]],
+              table(([["기업 · 연락처 (가상)", f"{company['name']} · {company.get('email', '-')} · {company.get('phone', '-')}"]] if company.get("name") else [])
+                    + [["업종 · 소재지", f"{company['industry']} · {company['sido']}"], ["설립일", company["founded"]],
                      ["중소기업 판정", "해당" if company["is_sme"] else "확인 필요"],
                      ["상시근로자", f"전년 {company['ep']}명 → 당해 {company['ec']}명 (청년 등 {company['yp']}명 → {company['yc']}명)"]],
                     [38 * mm, 140 * mm], head=False, size=8, pad=2), Spacer(1, 2 * mm)]

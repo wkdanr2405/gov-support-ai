@@ -72,24 +72,60 @@ def test_db_register_approve_and_requests_are_session_local():
     assert list_requests(a, new_id)[0]["receipt"] == "DEMO-AAAAAA" and list_requests(b, new_id) == []
 
 
-def test_auth_accounts_and_password_hash():
-    from src.auth import DEMO_PASSWORD, accounts, hash_pw, login
+def test_auth_by_name_hides_other_accounts_and_hashes_password():
+    from src.auth import DEMO_PASSWORD, find_account, hash_pw, login
     from src.experts.db import new_db, register_expert
     db = new_db()
-    assert [a["id"] for a in accounts(db, "기업")] == ["corp-1", "corp-2"] and [a["id"] for a in accounts(db, "운영자")] == ["admin-1"]
-    assert len(accounts(db, "회계법인/세무법인")) == 6
-    assert login(db, "기업", "corp-1", DEMO_PASSWORD) == {"role": "기업", "id": "corp-1", "name": "가상전자(주) 대표"}
-    assert login(db, "기업", "corp-1", "") is None and login(db, "기업", "corp-9", DEMO_PASSWORD) is None
+    assert login(db, "기업", "가상전자(주)", DEMO_PASSWORD) == {"role": "기업", "id": "corp-1", "name": "가상전자(주)"}
+    assert login(db, "기업", " 가상전자 (주) ", DEMO_PASSWORD)["id"] == "corp-1"            # 띄어쓰기·대소문자는 무시
+    assert login(db, "기업", "가상전자(주)", "") is None and login(db, "기업", "없는기업", DEMO_PASSWORD) is None
+    assert login(db, "운영자", "운영자", DEMO_PASSWORD)["id"] == "admin-1"
+    assert login(db, "회계법인/세무법인", "새빛세무법인", DEMO_PASSWORD)["id"] == "exp-1"
+    assert login(db, "기업", "새빛세무법인", DEMO_PASSWORD) is None and login(db, "회계법인/세무법인", "가상전자(주)", DEMO_PASSWORD) is None
+    assert find_account(db, "기업", "") is None and find_account(db, "기업", "가상") is None      # 목록 조회·부분 일치 불가
     assert hash_pw(DEMO_PASSWORD) != DEMO_PASSWORD
-    new_id = register_expert(db, "가온세무법인", "세무법인", 2021, 7, "소개", ["rnd_credit"], ["화상"])
-    assert login(db, "회계법인/세무법인", new_id, DEMO_PASSWORD) is None          # 승인 전에는 로그인 불가
+    register_expert(db, "가온세무법인", "세무법인", 2021, 7, "소개", ["rnd_credit"], ["화상"])
+    assert login(db, "회계법인/세무법인", "가온세무법인", DEMO_PASSWORD) is None          # 승인 전에는 로그인 불가
+
+
+def test_company_signup_profile_edit_and_virtual_contact_rules():
+    import pytest
+    from src.experts.db import get_company, new_db, register_company, register_expert, update_company, virtual_contact
+    db = new_db()
+    assert get_company(db, "corp-1")["email"].endswith("@example.com") and get_company(db, "corp-1")["phone"].startswith("010-0000-")
+    email, phone = virtual_contact(db)
+    cid = register_company(db, "해든푸드(주)", email, phone)
+    assert get_company(db, cid)["name"] == "해든푸드(주)" and cid == "corp-3"
+    with pytest.raises(ValueError):
+        register_company(db, "해든푸드 (주)", "a@example.com", "010-0000-0009")        # 같은 이름(띄어쓰기만 다름)
+    for bad_email, bad_phone in [("real@gmail.com", "010-0000-0009"), ("a@example.com", "010-1234-5678"), ("", "010-0000-0009")]:
+        with pytest.raises(ValueError):
+            register_company(db, "다른기업", bad_email, bad_phone)                       # 실제 이메일·연락처 형식 거부
+    with pytest.raises(ValueError):
+        register_company(db, " ", "a@example.com", "010-0000-0009")
+    with pytest.raises(ValueError):
+        register_expert(db, "새빛세무법인", "세무법인", 2021, 7, "소개", ["rnd_credit"], ["화상"])   # 법인명 중복
+    update_company(db, "corp-1", "가상전자(수정)", "new1@example.com", "010-0000-0101")
+    assert get_company(db, "corp-1") == dict(id="corp-1", name="가상전자(수정)", email="new1@example.com", phone="010-0000-0101")
+    with pytest.raises(ValueError):
+        update_company(db, "corp-1", "새싹소프트(주)", "new1@example.com", "010-0000-0101")      # 다른 기업 이름과 겹침
+    assert get_company(new_db(), "corp-1")["name"] == "가상전자(주)"                           # 다른 접속에는 영향 없음
+
+
+def test_brief_and_pdf_carry_company_contact():
+    from src.report.pdf import build_brief_pdf
+    co = {**CO, "name": "가상전자(주)", "email": "contact1@example.com", "phone": "010-0000-0001"}
+    b = build_brief("가상 기업 기준 예시", co, RES, [], [])
+    assert "가상전자(주)" in b and "contact1@example.com" in b and "010-0000-0001" in b
+    pdf = build_brief_pdf("가상 기업 기준 예시", co, RES, [], [], expert=load_experts()[0], topic="둘 다", channel="화상")
+    assert pdf.startswith(b"%PDF") and pdf.count(b"/Type /Page\n") + pdf.count(b"/Type /Page ") >= 1
 
 
 def test_requests_are_isolated_by_expert_and_by_client():
     from src.experts.db import add_request, list_requests, list_requests_by_client, new_db
     db = new_db()
-    add_request(db, "DEMO-000001", "exp-1", "둘 다", "화상", "", "본문1", b"1", "corp-1", "가상전자(주) 대표")
-    add_request(db, "DEMO-000002", "exp-2", "둘 다", "화상", "", "본문2", b"2", "corp-2", "새싹소프트(주) 대표")
+    add_request(db, "DEMO-000001", "exp-1", "둘 다", "화상", "", "본문1", b"1", "corp-1", "가상전자(주)")
+    add_request(db, "DEMO-000002", "exp-2", "둘 다", "화상", "", "본문2", b"2", "corp-2", "새싹소프트(주)")
     assert [r["receipt"] for r in list_requests(db, "exp-1")] == ["DEMO-000001"]
     assert [r["receipt"] for r in list_requests(db, "exp-3")] == []
     assert [r["receipt"] for r in list_requests_by_client(db, "corp-2")] == ["DEMO-000002"]
@@ -100,7 +136,7 @@ def test_update_expert_changes_profile_but_keeps_requests_and_rejects_bad_input(
     import pytest
     from src.experts.db import add_request, list_requests, new_db, register_expert, update_expert
     db = new_db()
-    add_request(db, "DEMO-000001", "exp-1", "주제", "화상", "", "요약", False, "corp-1", "가상전자(주) 대표")
+    add_request(db, "DEMO-000001", "exp-1", "주제", "화상", "", "요약", False, "corp-1", "가상전자(주)")
     update_expert(db, "exp-1", "새빛세무법인(수정)", "회계법인", 2010, 30, "새 소개", ["disaster_loss"], ["전화"], ["C"])
     me = next(e for e in load_experts(db) if e["id"] == "exp-1")
     assert me["name"] == "새빛세무법인(수정)" and me["kind"] == "회계법인" and me["staff"] == 30 and me["founded"] == 2010
