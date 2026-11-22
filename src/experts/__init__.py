@@ -4,15 +4,56 @@
 정렬은 규칙(합계에 들어간 공제·감면 id와 전문 분야가 겹치는 수)만 쓰고, 금액은 규칙 엔진 결과를 그대로 옮긴다.
 """
 import hashlib
+from functools import lru_cache
+from pathlib import Path
+
+import yaml
 
 from src.money import won_text
 
 DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합니다."
 STEPS = ["요청 접수", "전문가 검토", "상담 일정 안내", "상담 진행", "신청 준비 (전문가와 상의해 진행)"]
-# 시·도 → 상담 지역권 (전문가의 활동 지역은 지역권 이름으로 적는다)
-REGION_GROUP = {"서울": "수도권", "인천": "수도권", "경기": "수도권", "대전": "충청권", "세종": "충청권", "충북": "충청권", "충남": "충청권",
-                "부산": "영남권", "대구": "영남권", "울산": "영남권", "경북": "영남권", "경남": "영남권",
-                "광주": "호남권", "전북": "호남권", "전남": "호남권", "강원": "강원권", "제주": "제주권"}
+ETC = "기타"                       # 모든 선택 항목의 마지막 선택지. 고르면 '기타: 내용' 형태로 저장한다.
+_REGION_FILE = Path(__file__).resolve().parents[2] / "data" / "regions_admin.yaml"
+
+
+@lru_cache(maxsize=None)
+def region_tree() -> dict[str, list[str]]:
+    """시·도 → 시·군·구 목록 (광역시는 구·군, 도는 시·군)."""
+    return yaml.safe_load(_REGION_FILE.read_text(encoding="utf-8"))
+
+
+def region_options() -> list[str]:
+    """활동 지역 선택지: 전국 → 시·도별 '서울 전체', '서울 종로구' … → 기타."""
+    out = ["전국"]
+    for sido, subs in region_tree().items():
+        out.append(f"{sido} 전체")
+        out += [f"{sido} {x}" for x in subs]
+    return out + [ETC]
+
+
+def split_etc(values: list[str], options) -> tuple[list[str], str]:
+    """저장된 값 목록 → (고른 선택지들, 기타 내용). '기타' 또는 '기타: 내용'은 기타로 모은다."""
+    picked = [v for v in values if v in options and v != ETC]
+    etc = next((v for v in values if v == ETC or v.startswith(ETC + ":")), None)
+    text = etc.split(":", 1)[1].strip() if etc and ":" in etc else ""
+    return picked, text
+
+
+def join_etc(picked: list[str], etc_text: str) -> list[str]:
+    """고른 선택지 + 기타 내용 → 저장할 값 목록. 기타를 고르거나 내용을 적으면 '기타[: 내용]'을 하나 붙인다."""
+    base = [v for v in picked if v != ETC]
+    text = (etc_text or "").strip()
+    if text:
+        return base + [f"{ETC}: {text}"]
+    return base + ([ETC] if ETC in picked else [])
+
+
+def show_etc(values: list[str]) -> list[str]:
+    """화면 표시용: '기타: 내용' → '기타(내용)'."""
+    return [f"{ETC}({v.split(':', 1)[1].strip()})" if v.startswith(ETC + ":") else v for v in values]
+
+
 CREDIT_NAMES = {"rnd_credit": "연구·인력개발비 공제", "integrated_employment": "통합고용 공제", "disaster_loss": "재해손실 공제",
                 "startup_sme_exemption": "창업 감면", "sme_special_reduction": "중소기업 특별감면", "gov_support": "정부지원사업"}
 INDUSTRY_NAMES = {"C": "제조업", "J": "정보통신업", "F": "건설업", "G": "도소매업", "M": "전문·과학·기술 서비스업"}
@@ -28,17 +69,18 @@ def load_experts(conn=None) -> list[dict]:
 
 def rank_experts(experts: list[dict], credit_ids: list[str], want_gov_support: bool = True,
                  sido: str | None = None, ksic: str | None = None) -> list[dict]:
-    """점수 순(분야 10점/개 + 소재지 지역권 3점(전국 상담은 2점) + 경험 업종 2점). 같으면 명단 순서. score·reasons·reason_line을 붙여 돌려준다."""
-    group = REGION_GROUP.get(sido or "")
+    """점수 순(분야 10점/개 + 소재지 시·도에서 활동하면 3점(전국 상담은 2점) + 경험 업종 2점). 같으면 명단 순서. score·reasons·reason_line을 붙여 돌려준다."""
     ranked = []
     for i, e in enumerate(experts):
         hit = [s for s in e["specialties"] if s in credit_ids or (want_gov_support and s == "gov_support")]
         reasons = [CREDIT_NAMES.get(s, s) for s in hit]
         score = W_SPECIALTY * len(hit)
-        region_ok = bool(group) and ("전국" in e["regions"] or group in e["regions"])
+        everywhere = "전국" in e["regions"]
+        local = bool(sido) and any(r.split(" ", 1)[0] == sido for r in e["regions"])      # '경기 전체'·'경기 수원시' 모두 해당 시·도 활동
+        region_ok = bool(sido) and (everywhere or local)
         if region_ok:
-            score += W_REGION_ALL if "전국" in e["regions"] else W_REGION_LOCAL
-            reasons.append(f"{group} 상담 가능" if "전국" not in e["regions"] else "전국 상담 가능")
+            score += W_REGION_LOCAL if local else W_REGION_ALL
+            reasons.append(f"{sido} 상담 가능" if local else "전국 상담 가능")
         ind_ok = bool(ksic) and any(ksic.startswith(p) for p in e.get("industries", []))
         if ind_ok:
             score += W_INDUSTRY

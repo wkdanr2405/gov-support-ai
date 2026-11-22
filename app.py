@@ -24,7 +24,7 @@ from src.matching import Embedder, build_profile, match
 from src.money import fmt_won, kor_unit, man_to_won, parse_won, won_text, won_to_eok, won_to_man
 from src.auth import ROLE_CORP, ROLE_EXPERT
 from src.ui_pro import VIRTUAL_NOTICE, render_admin_home, render_expert_home, render_login
-from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no
+from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no, show_etc
 from src.experts.db import add_request, list_requests_by_client, new_db
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
 from src.report.explain import build_facts, explain
@@ -467,7 +467,7 @@ with top_cust:
                 st.markdown(f"**{e_['name']}**")
                 st.caption(f"{e_['firm']} · 경력 {e_['years']}년")
                 st.write(e_["intro"])
-                st.caption("상담 방식: " + " · ".join(e_["channels"]) + " / 지역: " + ", ".join(e_["regions"]))
+                st.caption("상담 방식: " + " · ".join(show_etc(e_["channels"])) + " / 지역: " + ", ".join(show_etc(e_["regions"])))
                 st.markdown(f'<span class="{"ok" if e_["reasons"] else "na"}">' +
                             ("● 추천 이유: " + e_["reason_line"] if e_["reasons"] else "○ 이번 결과와 겹치는 항목 없음") + "</span>",
                             unsafe_allow_html=True)
@@ -499,8 +499,8 @@ with top_cust:
             nick = f1.text_input("회사 별칭", placeholder="예: ○○전자")
             mail = f2.text_input("연락받을 이메일", placeholder="name@example.com")
             g1, g2 = st.columns(2)
-            topic = g1.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다"])
-            channel = g2.selectbox("희망 상담 방식", chosen["channels"])
+            topic = g1.selectbox("상담 희망 분야", ["세액공제 예상액 검토", "정부지원사업 신청 준비", "둘 다", "기타 (추가로 전할 말에 적어 주세요)"])
+            channel = g2.selectbox("희망 상담 방식", chosen["channels"], format_func=lambda x: show_etc([x])[0])
             memo = st.text_area("추가로 전할 말", placeholder="궁금한 점이나 원하는 일정을 적어 주세요", height=80)
             agree = st.checkbox("개인정보 안내를 읽고 이해했습니다")
             sent = st.form_submit_button("상담 요청 보내기")

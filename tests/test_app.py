@@ -178,7 +178,7 @@ def test_wrong_password_is_rejected_and_role_account_mismatch_too():
     assert any("맞지 않습니다" in e.value for e in at.error) and "auth" not in at.session_state
     from src.auth import login
     from src.experts.db import new_db
-    assert login(new_db(), "세무사/회계사", "corp-1", "demo1234") is None      # 기업 아이디로 전문가 로그인 불가
+    assert login(new_db(), "공인회계사/세무사", "corp-1", "demo1234") is None      # 기업 아이디로 전문가 로그인 불가
     assert login(new_db(), "기업", "exp-1", "demo1234") is None
 
 
@@ -188,7 +188,7 @@ def test_corp_sees_company_screen_only_and_expert_sees_expert_screen_only():
     assert not at.exception and "기업 정보 입력" in md(at)
     assert not [t for t in at.tabs if t.label == "고객 상담 요청"]
     at = fresh()
-    login_ui(at, "세무사/회계사", "exp-1")
+    login_ui(at, "공인회계사/세무사", "exp-1")
     assert not at.exception and "기업 정보 입력" not in md(at) and not at.metric
     assert [t for t in at.tabs if t.label == "고객 상담 요청"]
     assert "박서윤 세무사" in md(at)
@@ -211,10 +211,10 @@ def test_request_reaches_only_the_chosen_expert_and_logout_clears_company_data()
     assert any("아직 보낸 상담 요청이 없습니다" in c.value for c in at.caption) and receipt not in md(at)
     btn(at, "로그아웃").click().run()
     # 요청을 받은 전문가에게는 보이고, 다른 전문가에게는 보이지 않는다
-    login_ui(at, "세무사/회계사", "exp-2")
+    login_ui(at, "공인회계사/세무사", "exp-2")
     assert receipt in " ".join(e.label for e in at.expander) and "가상전자" in " ".join(e.label for e in at.expander)
     btn(at, "로그아웃").click().run()
-    login_ui(at, "세무사/회계사", "exp-1")
+    login_ui(at, "공인회계사/세무사", "exp-1")
     assert not [e for e in at.expander if receipt in e.label] and "아직 들어온 고객 상담 요청이 없습니다" in " ".join(i.value for i in at.info)
 
 
@@ -225,23 +225,23 @@ def test_expert_signup_admin_approval_then_login():
     next(t for t in at.text_input if t.label.startswith("소속")).set_value("세무회계 다온 · 대구")
     next(t for t in at.text_area if t.label == "소개").set_value("제조업 연구개발비 공제를 주로 맡습니다.")
     next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
-    next(m for m in at.multiselect if m.label == "활동 지역").set_value(["영남권"])
+    next(m for m in at.multiselect if m.label == "활동 지역").set_value(["부산 전체"])
     next(m for m in at.multiselect if m.label == "상담 방식").set_value(["화상"])
     btn(at, "가입 신청하기").click().run()
     assert any("접수되었습니다" in s.value for s in at.success)
-    at.radio(key="login_role").set_value("세무사/회계사").run()
+    at.radio(key="login_role").set_value("공인회계사/세무사").run()
     assert "exp-7" not in at.selectbox(key="login_acc").options          # 승인 전에는 로그인 불가
     login_ui(at, "운영자", "admin-1")
     assert not at.exception and "기업 정보 입력" not in md(at)
     btn(at, "자격 확인 완료 · 승인").click().run()
     btn(at, "로그아웃").click().run()
-    login_ui(at, "세무사/회계사", "exp-7")
+    login_ui(at, "공인회계사/세무사", "exp-7")
     assert not at.exception and "최가온 세무사" in md(at)
 
 
 def test_expert_can_edit_profile_and_it_persists_and_reaches_company_list():
     at = fresh()
-    login_ui(at, "세무사/회계사", "exp-1")
+    login_ui(at, "공인회계사/세무사", "exp-1")
     intro = next(t for t in at.text_area if t.label == "소개")
     assert intro.value and next(t for t in at.text_input if t.label.startswith("이름")).value == "박서윤 세무사"   # 신청 때와 같은 화면, 현재 값이 채워져 있다
     # 전문 분야를 비우면 오류, 저장되지 않음
@@ -258,5 +258,27 @@ def test_expert_can_edit_profile_and_it_persists_and_reaches_company_list():
     assert "박서윤 세무사(수정)" in md(at)                                         # 위쪽 표시 이름도 바뀜
     # 로그아웃 후 다시 로그인해도 유지 (기업 화면 반영은 test_experts의 load_experts 검사로 확인)
     btn(at, "로그아웃").click().run()
-    login_ui(at, "세무사/회계사", "exp-1")
+    login_ui(at, "공인회계사/세무사", "exp-1")
     assert next(t for t in at.text_area if t.label == "소개").value == "수정한 소개입니다."
+
+
+def test_profile_form_has_etc_everywhere_district_regions_and_cpa_first():
+    at = fresh()
+    assert at.radio(key="login_role").options == ["기업", "공인회계사/세무사", "운영자"]
+    login_ui(at, "공인회계사/세무사", "exp-1")
+    lic = next(r for r in at.radio if r.label == "자격")
+    assert lic.options == ["공인회계사", "세무사", "기타"]                                            # 공인회계사가 먼저
+    for label in ("전문 분야", "활동 지역", "상담 방식", "경험 업종 (비우면 전 업종)"):
+        ms = next(m for m in at.multiselect if m.label == label)
+        assert ms.options[-1] == "기타" and any(t.label == f"{label} · 기타 내용 (직접 입력)" for t in at.text_input)
+    reg = next(m for m in at.multiselect if m.label == "활동 지역")
+    assert "서울 강남구" in reg.options and "경기 수원시" in reg.options and "부산 전체" in reg.options
+    # 기타 내용을 적어 저장하면 유지된다
+    next(t for t in at.text_input if t.label == "상담 방식 · 기타 내용 (직접 입력)").set_value("채팅")
+    next(r for r in at.radio if r.label == "자격").set_value("기타")
+    next(t for t in at.text_input if t.label == "자격 · 기타 내용 (직접 입력)").set_value("관세사")
+    btn(at, "프로필 저장").click().run()
+    assert any("프로필이 저장되었습니다" in s.value for s in at.success)
+    assert next(t for t in at.text_input if t.label == "상담 방식 · 기타 내용 (직접 입력)").value == "채팅"
+    assert next(t for t in at.text_input if t.label == "자격 · 기타 내용 (직접 입력)").value == "관세사"
+    assert next(r for r in at.radio if r.label == "자격").value == "기타"

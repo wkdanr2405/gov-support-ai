@@ -11,7 +11,7 @@ from src.experts.db import list_experts
 
 DEMO_PASSWORD = "demo1234"
 _SALT = "gov-support-demo"
-ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN = "기업", "세무사/회계사", "운영자"
+ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN = "기업", "공인회계사/세무사", "운영자"
 ROLES = [ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN]
 CORP_ACCOUNTS = [("corp-1", "가상전자(주) 대표"), ("corp-2", "새싹소프트(주) 대표")]
 ADMIN_ACCOUNTS = [("admin-1", "운영자")]

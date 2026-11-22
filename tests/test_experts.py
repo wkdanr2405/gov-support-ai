@@ -38,7 +38,7 @@ def test_rank_uses_region_and_industry_as_tiebreakers():
     base = ["rnd_credit"]
     busan = rank_experts(load_experts(), base, want_gov_support=False, sido="부산", ksic="C26")
     assert busan[0]["id"] == "exp-4"                                  # 영남권·제조업 경험이 있는 김민재 세무사가 같은 분야 중 맨 앞
-    assert "영남권 상담 가능" in busan[0]["reasons"] and "제조업 경험" in busan[0]["reasons"]
+    assert "부산 상담 가능" in busan[0]["reasons"] and "제조업 경험" in busan[0]["reasons"]
     seoul = rank_experts(load_experts(), base, want_gov_support=False, sido="서울", ksic="J62")
     assert seoul[0]["id"] in ("exp-1", "exp-5") and seoul[0]["score"] == 10 + 2 + 2
     none = rank_experts(load_experts(), [], want_gov_support=False)
@@ -69,12 +69,12 @@ def test_auth_accounts_and_password_hash():
     from src.experts.db import new_db, register_expert
     db = new_db()
     assert [a["id"] for a in accounts(db, "기업")] == ["corp-1", "corp-2"] and [a["id"] for a in accounts(db, "운영자")] == ["admin-1"]
-    assert len(accounts(db, "세무사/회계사")) == 6
+    assert len(accounts(db, "공인회계사/세무사")) == 6
     assert login(db, "기업", "corp-1", DEMO_PASSWORD) == {"role": "기업", "id": "corp-1", "name": "가상전자(주) 대표"}
     assert login(db, "기업", "corp-1", "") is None and login(db, "기업", "corp-9", DEMO_PASSWORD) is None
     assert hash_pw(DEMO_PASSWORD) != DEMO_PASSWORD
     new_id = register_expert(db, "최가온 세무사", "다온", "세무사", 5, "소개", ["rnd_credit"], ["전국"], ["화상"])
-    assert login(db, "세무사/회계사", new_id, DEMO_PASSWORD) is None          # 승인 전에는 로그인 불가
+    assert login(db, "공인회계사/세무사", new_id, DEMO_PASSWORD) is None          # 승인 전에는 로그인 불가
 
 
 def test_requests_are_isolated_by_expert_and_by_client():
@@ -106,3 +106,25 @@ def test_update_expert_changes_profile_but_keeps_requests_and_rejects_bad_input(
         update_expert(db, pid, "대기자2", "소속", "세무사", 3, "소개", ["rnd_credit"], ["전국"], ["화상"])  # 미승인은 못 고침
     other = new_db()                                                               # 다른 접속(세션)에는 영향 없음
     assert next(e for e in load_experts(other) if e["id"] == "exp-1")["name"] == "박서윤 세무사"
+
+
+def test_region_options_are_granular_and_etc_helpers_roundtrip():
+    from src.experts import ETC, join_etc, region_options, region_tree, show_etc, split_etc
+    opts = region_options()
+    assert opts[0] == "전국" and opts[-1] == ETC
+    assert {"서울 강남구", "부산 해운대구", "대구 달성군", "인천 강화군", "광주 광산구", "대전 유성구", "울산 울주군"} <= set(opts)    # 광역시: 구·군
+    assert {"경기 수원시", "경기 가평군", "강원 춘천시", "충남 천안시", "전남 신안군", "경북 울릉군", "경남 거창군", "제주 서귀포시"} <= set(opts)  # 도: 시·군
+    assert "경기 수원시 영통구" not in opts and "서울 전체" in opts and "세종 세종시" in opts
+    assert sum(len(v) for v in region_tree().values()) == 229
+    assert join_etc(["화상", ETC], "") == ["화상", "기타"] and join_etc(["화상"], " 우편 ") == ["화상", "기타: 우편"]
+    assert split_etc(["화상", "기타: 우편"], ["화상", "전화"]) == (["화상"], "우편") and show_etc(["기타: 우편", "화상"]) == ["기타(우편)", "화상"]
+
+
+def test_rank_matches_expert_by_sido_even_when_only_a_district_is_chosen():
+    from src.experts.db import new_db, update_expert
+    db = new_db()
+    update_expert(db, "exp-1", "박서윤 세무사", "소속", "세무사", 5, "소개", ["rnd_credit"], ["부산 해운대구"], ["화상"])
+    r = {e["id"]: e for e in rank_experts(load_experts(db), ["rnd_credit"], want_gov_support=False, sido="부산")}
+    assert "부산 상담 가능" in r["exp-1"]["reasons"]
+    r2 = {e["id"]: e for e in rank_experts(load_experts(db), ["rnd_credit"], want_gov_support=False, sido="서울")}
+    assert "서울 상담 가능" not in r2["exp-1"]["reasons"]
