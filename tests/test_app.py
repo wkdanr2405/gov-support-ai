@@ -237,3 +237,26 @@ def test_expert_signup_admin_approval_then_login():
     btn(at, "로그아웃").click().run()
     login_ui(at, "세무사/회계사", "exp-7")
     assert not at.exception and "최가온 세무사" in md(at)
+
+
+def test_expert_can_edit_profile_and_it_persists_and_reaches_company_list():
+    at = fresh()
+    login_ui(at, "세무사/회계사", "exp-1")
+    intro = next(t for t in at.text_area if t.label == "소개")
+    assert intro.value and next(t for t in at.text_input if t.label.startswith("이름")).value == "박서윤 세무사"   # 신청 때와 같은 화면, 현재 값이 채워져 있다
+    # 전문 분야를 비우면 오류, 저장되지 않음
+    next(m for m in at.multiselect if m.label == "전문 분야").set_value([])
+    btn(at, "프로필 저장").click().run()
+    assert any("하나 이상" in e.value for e in at.error)
+    # 정상 수정
+    login_ok = next(t for t in at.text_input if t.label.startswith("이름"))
+    login_ok.set_value("박서윤 세무사(수정)")
+    next(t for t in at.text_area if t.label == "소개").set_value("수정한 소개입니다.")
+    next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
+    btn(at, "프로필 저장").click().run()
+    assert not at.exception and any("프로필이 저장되었습니다" in s.value for s in at.success)
+    assert "박서윤 세무사(수정)" in md(at)                                         # 위쪽 표시 이름도 바뀜
+    # 로그아웃 후 다시 로그인해도 유지 (기업 화면 반영은 test_experts의 load_experts 검사로 확인)
+    btn(at, "로그아웃").click().run()
+    login_ui(at, "세무사/회계사", "exp-1")
+    assert next(t for t in at.text_area if t.label == "소개").value == "수정한 소개입니다."

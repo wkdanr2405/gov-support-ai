@@ -6,31 +6,46 @@ import streamlit as st
 
 from src.auth import DEMO_PASSWORD, ROLE_ADMIN, ROLE_CORP, ROLE_EXPERT, ROLES, accounts, login
 from src.experts import CREDIT_NAMES, INDUSTRY_NAMES, REGION_GROUP
-from src.experts.db import approve_expert, list_experts, list_requests, register_expert
+from src.experts.db import approve_expert, list_experts, list_requests, register_expert, update_expert
 
 VIRTUAL_NOTICE = "모든 인물과 법인은 시연을 위해 지어낸 가상의 정보이며, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요."
+
+
+def _profile_form(form_key: str, d: dict, submit_label: str) -> dict | None:
+    """가입 신청과 프로필 수정이 함께 쓰는 입력 화면. 제출하면 입력값 묶음을, 아니면 None을 돌려준다."""
+    regions_all = ["전국"] + sorted(set(REGION_GROUP.values()))
+    with st.form(form_key):
+        r1, r2 = st.columns(2)
+        pn = r1.text_input("이름 (가명)", value=d["name"], placeholder="예: 최가온 세무사")
+        pf = r2.text_input("소속 (가상 법인명)", value=d["firm"], placeholder="예: 세무회계 다온 · 대구")
+        r3, r4 = st.columns(2)
+        plic = r3.radio("자격", ["세무사", "공인회계사"], index=["세무사", "공인회계사"].index(d["license"]), horizontal=True)
+        pyears = r4.number_input("경력 (년)", min_value=0, max_value=60, value=int(d["years"]), step=1)
+        pspec = st.multiselect("전문 분야", list(CREDIT_NAMES), default=[x for x in d["specialties"] if x in CREDIT_NAMES],
+                               format_func=CREDIT_NAMES.get, placeholder="선택하세요")
+        c1, c2 = st.columns(2)
+        preg = c1.multiselect("활동 지역", regions_all, default=[x for x in d["regions"] if x in regions_all], placeholder="선택하세요")
+        pch = c2.multiselect("상담 방식", ["화상", "전화", "대면"], default=[x for x in d["channels"] if x in ("화상", "전화", "대면")],
+                             placeholder="선택하세요")
+        pind = st.multiselect("경험 업종 (비우면 전 업종)", list(INDUSTRY_NAMES), default=[x for x in d["industries"] if x in INDUSTRY_NAMES],
+                              format_func=INDUSTRY_NAMES.get, placeholder="선택하세요")
+        pintro = st.text_area("소개", value=d["intro"], height=80, placeholder="주로 맡는 업무를 한두 문장으로 적어 주세요")
+        sent = st.form_submit_button(submit_label)
+    if not sent:
+        return None
+    return dict(name=pn, firm=pf, license=plic, years=int(pyears), intro=pintro, specialties=pspec, regions=preg, channels=pch, industries=pind)
+
+
+BLANK_PROFILE = dict(name="", firm="", license="세무사", years=5, intro="", specialties=[], regions=[], channels=[], industries=[])
 
 
 def render_register_form(edb) -> None:
     """전문가 가입 신청 (로그인 전에 누구나 낼 수 있고, 운영자가 승인해야 로그인할 수 있다)."""
     st.write("실제 서비스에서는 자격번호를 한국세무사회·한국공인회계사회 공개 조회로 확인한 뒤 승인합니다. 여기서는 운영자 승인 절차만 보여 줍니다.")
-    with st.form("pro_register"):
-        r1, r2 = st.columns(2)
-        pn = r1.text_input("이름 (가명)", placeholder="예: 최가온 세무사")
-        pf = r2.text_input("소속 (가상 법인명)", placeholder="예: 세무회계 다온 · 대구")
-        r3, r4 = st.columns(2)
-        plic = r3.radio("자격", ["세무사", "공인회계사"], horizontal=True)
-        pyears = r4.number_input("경력 (년)", min_value=0, max_value=60, value=5, step=1)
-        pspec = st.multiselect("전문 분야", list(CREDIT_NAMES), format_func=CREDIT_NAMES.get, placeholder="선택하세요")
-        c1, c2 = st.columns(2)
-        preg = c1.multiselect("활동 지역", ["전국"] + sorted(set(REGION_GROUP.values())), placeholder="선택하세요")
-        pch = c2.multiselect("상담 방식", ["화상", "전화", "대면"], placeholder="선택하세요")
-        pind = st.multiselect("경험 업종 (비우면 전 업종)", list(INDUSTRY_NAMES), format_func=INDUSTRY_NAMES.get, placeholder="선택하세요")
-        pintro = st.text_area("소개", height=80, placeholder="주로 맡는 업무를 한두 문장으로 적어 주세요")
-        sent = st.form_submit_button("가입 신청하기")
-    if sent:
+    got = _profile_form("pro_register", BLANK_PROFILE, "가입 신청하기")
+    if got:
         try:
-            new_id = register_expert(edb, pn, pf, plic, int(pyears), pintro, pspec, preg, pch, pind)
+            new_id = register_expert(edb, **got)
             st.success(f"가입 신청이 접수되었습니다 ({new_id}). 운영자가 승인하면 '세무사/회계사'로 로그인할 수 있습니다.")
         except ValueError as err:
             st.error(str(err))
@@ -73,11 +88,19 @@ def render_expert_home(edb, auth: dict) -> None:
                 st.download_button("전달 자료 PDF", rq["pdf"], file_name=f"상담_전달_자료_{rq['receipt']}.pdf", mime="application/pdf",
                                    key=f"pdf_{rq['receipt']}")
     with t2:
+        st.write("가입 신청 때와 같은 항목입니다. 고친 뒤 '프로필 저장'을 누르면 기업 화면의 전문가 추천에 바로 반영됩니다.")
+        if st.session_state.pop("profile_saved", False):
+            st.success("프로필이 저장되었습니다.")
         if me:
-            st.markdown(f"**{me['name']}** ({me['license']}) · {me['firm']} · 경력 {me['years']}년")
-            st.write(me["intro"])
-            st.caption("전문 분야: " + ", ".join(CREDIT_NAMES.get(x, x) for x in me["specialties"]) + " / 지역: " + ", ".join(me["regions"]) +
-                       " / 상담 방식: " + ", ".join(me["channels"]))
+            got = _profile_form(f"pro_edit_{me['id']}", me, "프로필 저장")
+            if got:
+                try:
+                    update_expert(edb, me["id"], **got)
+                    st.session_state["auth"] = {**auth, "name": got["name"].strip()}     # 위쪽 로그인 표시 이름도 바뀐다
+                    st.session_state["profile_saved"] = True
+                    st.rerun()
+                except ValueError as err:
+                    st.error(str(err))
 
 
 def render_admin_home(edb) -> None:

@@ -86,3 +86,23 @@ def test_requests_are_isolated_by_expert_and_by_client():
     assert [r["receipt"] for r in list_requests(db, "exp-3")] == []
     assert [r["receipt"] for r in list_requests_by_client(db, "corp-2")] == ["DEMO-000002"]
     assert list_requests_by_client(db, "corp-3") == []
+
+
+def test_update_expert_changes_profile_but_keeps_requests_and_rejects_bad_input():
+    import pytest
+    from src.experts.db import add_request, list_requests, new_db, register_expert, update_expert
+    db = new_db()
+    add_request(db, "DEMO-000001", "exp-1", "주제", "화상", "", "요약", False, "corp-1", "가상전자(주) 대표")
+    update_expert(db, "exp-1", "박서윤 세무사(수정)", "새 소속", "세무사", 12, "새 소개", ["disaster_loss"], ["영남권"], ["전화"], ["C"])
+    me = next(e for e in load_experts(db) if e["id"] == "exp-1")
+    assert me["name"] == "박서윤 세무사(수정)" and me["specialties"] == ["disaster_loss"] and me["regions"] == ["영남권"] and me["channels"] == ["전화"]
+    assert len(list_requests(db, "exp-1")) == 1                                   # 받은 요청은 그대로
+    assert load_experts(db)[0]["id"] == "exp-1" and len(load_experts(db)) == 6     # 순서·인원 그대로
+    with pytest.raises(ValueError):
+        update_expert(db, "exp-1", "박서윤", "소속", "세무사", 5, "소개", [], ["전국"], ["화상"])   # 전문 분야 비움
+    assert next(e for e in load_experts(db) if e["id"] == "exp-1")["name"] == "박서윤 세무사(수정)"
+    pid = register_expert(db, "대기자", "소속", "세무사", 3, "소개", ["rnd_credit"], ["전국"], ["화상"])
+    with pytest.raises(ValueError):
+        update_expert(db, pid, "대기자2", "소속", "세무사", 3, "소개", ["rnd_credit"], ["전국"], ["화상"])  # 미승인은 못 고침
+    other = new_db()                                                               # 다른 접속(세션)에는 영향 없음
+    assert next(e for e in load_experts(other) if e["id"] == "exp-1")["name"] == "박서윤 세무사"

@@ -56,21 +56,39 @@ def list_experts(conn: sqlite3.Connection, status: str | None = "approved") -> l
     return out
 
 
-def register_expert(conn: sqlite3.Connection, name: str, firm: str, license: str, years: int, intro: str,
-                    specialties: list[str], regions: list[str], channels: list[str], industries: list[str] | None = None) -> str:
-    """전문가 등록 신청(승인 대기). 필수 항목이 비어 있으면 ValueError."""
+def _validate(name: str, firm: str, years: int, intro: str, specialties: list, regions: list, channels: list) -> None:
     if not (name.strip() and firm.strip() and intro.strip()):
         raise ValueError("이름·소속·소개를 모두 입력해 주세요.")
     if not (specialties and regions and channels):
         raise ValueError("전문 분야·활동 지역·상담 방식을 하나 이상 골라 주세요.")
     if not 0 <= int(years) <= 60:
         raise ValueError("경력은 0~60년 사이로 입력해 주세요.")
+
+
+def register_expert(conn: sqlite3.Connection, name: str, firm: str, license: str, years: int, intro: str,
+                    specialties: list[str], regions: list[str], channels: list[str], industries: list[str] | None = None) -> str:
+    """전문가 등록 신청(승인 대기). 필수 항목이 비어 있으면 ValueError."""
+    _validate(name, firm, years, intro, specialties, regions, channels)
     n = conn.execute("SELECT COUNT(*) FROM experts").fetchone()[0] + 1
     id_ = f"exp-{n}"
     _insert(conn, dict(id=id_, name=name.strip(), firm=firm.strip(), license=license, years=years, intro=intro.strip(),
                        specialties=specialties, regions=regions, channels=channels, industries=industries or []), "pending")
     conn.commit()
     return id_
+
+
+def update_expert(conn: sqlite3.Connection, expert_id: str, name: str, firm: str, license: str, years: int, intro: str,
+                  specialties: list[str], regions: list[str], channels: list[str], industries: list[str] | None = None) -> None:
+    """승인된 전문가가 자기 프로필을 고친다. 같은 검증을 하고, 승인 상태와 받은 상담 요청은 그대로 둔다."""
+    _validate(name, firm, years, intro, specialties, regions, channels)
+    cur = conn.execute("UPDATE experts SET name = ?, firm = ?, license = ?, years = ?, intro = ? WHERE id = ? AND status = 'approved'",
+                       (name.strip(), firm.strip(), license, int(years), intro.strip(), expert_id))
+    if cur.rowcount != 1:
+        raise ValueError("프로필을 고칠 수 있는 전문가 계정이 아닙니다.")
+    conn.execute("DELETE FROM expert_items WHERE expert_id = ?", (expert_id,))
+    items = dict(specialties=specialties, regions=regions, channels=channels, industries=industries or [])
+    conn.executemany("INSERT INTO expert_items VALUES (?,?,?)", [(expert_id, k, v) for k in LISTS for v in items[k]])
+    conn.commit()
 
 
 def approve_expert(conn: sqlite3.Connection, expert_id: str) -> None:
