@@ -458,28 +458,28 @@ with top_cust:
                      "· 상담은 세무 전문가가 하며, 이 서비스는 신고 대행·세액 확정·세무 자문을 하지 않습니다.")
 
         # 1) 전문가 고르기: 합계에 들어간 공제·감면과 분야가 겹치는 순서로 보여 준다
-        st.markdown("**1. 전문가 고르기**")
+        st.markdown("**1. 법인 고르기**")
         in_total_ids = [c["id"] for c in res["credits"] if c["status"] == "computed" and c.get("in_total")]
-        experts = rank_experts(load_experts(edb), in_total_ids, sido=sido, ksic=labels[label])
-        st.caption(f"전문가 {len(experts)}명 중 이번 결과와 소재지·업종에 잘 맞는 순서입니다 (분야 10점 · 소재지 2~3점 · 업종 2점).")
+        experts = rank_experts(load_experts(edb), in_total_ids, ksic=labels[label])
+        st.caption(f"회계·세무법인 {len(experts)}곳 중 이번 결과의 분야·업종에 잘 맞는 순서입니다 (분야 10점 · 업종 2점, 같으면 명단 순서).")
         for e_, col in zip(experts[:3], st.columns(3)):
             with col, st.container(border=True):
                 st.markdown(f"**{e_['name']}**")
-                st.caption(f"{e_['firm']} · 경력 {e_['years']}년")
+                st.caption(f"{e_['kind']} · 전문 인력 {e_['staff']}명 · 업력 {e_['years']}년")
                 st.write(e_["intro"])
-                st.caption("상담 방식: " + " · ".join(show_etc(e_["channels"])) + " / 지역: " + ", ".join(show_etc(e_["regions"])))
+                st.caption("상담 방식: " + " · ".join(show_etc(e_["channels"])))
                 st.markdown(f'<span class="{"ok" if e_["reasons"] else "na"}">' +
                             ("● 추천 이유: " + e_["reason_line"] if e_["reasons"] else "○ 이번 결과와 겹치는 항목 없음") + "</span>",
                             unsafe_allow_html=True)
         if len(experts) > 3:
-            with st.expander(f"나머지 전문가 {len(experts) - 3}명 보기"):
+            with st.expander(f"나머지 법인 {len(experts) - 3}곳 보기"):
                 for e_ in experts[3:]:
-                    st.markdown(f"**{e_['name']}** · {e_['firm']} · 경력 {e_['years']}년  \n"
+                    st.markdown(f"**{e_['name']}** · {e_['kind']} · 전문 인력 {e_['staff']}명 · 업력 {e_['years']}년  \n"
                                 f"{e_['intro']}  \n"
                                 f"<span class=\"{'ok' if e_['reasons'] else 'na'}\">" +
                                 ("● 추천 이유: " + e_["reason_line"] if e_["reasons"] else "○ 이번 결과와 겹치는 항목 없음") + "</span>",
                                 unsafe_allow_html=True)
-        pick = st.radio("상담받을 전문가", [x["name"] for x in experts], key="expert_pick", horizontal=True)
+        pick = st.radio("상담받을 법인", [x["name"] for x in experts], key="expert_pick", horizontal=True)
         chosen = next(x for x in experts if x["name"] == pick)
 
         # 2) 상담 전달 자료: 계산 결과·준비 서류·추천 공고를 자동으로 묶는다 (1페이지 PDF)
@@ -511,7 +511,7 @@ with top_cust:
                 brief = build_brief(BASIS, company, res, docs, out["items"], topic=topic, memo=memo)
                 no = receipt_no(brief)
                 st.success("상담 요청이 접수되었습니다.")
-                st.write(f"**접수번호:** {no}  \n**전문가:** {chosen['name']} ({chosen['firm']})  \n"
+                st.write(f"**접수번호:** {no}  \n**상담 법인:** {chosen['name']} ({chosen['kind']})  \n"
                          f"**상담 분야:** {topic} · **방식:** {channel}")
                 st.markdown("**앞으로의 진행**")
                 st.markdown("\n".join(f"{i}. {s_}" for i, s_ in enumerate(STEPS, 1)))
@@ -529,7 +529,7 @@ with top_cust:
         if not mine:
             st.caption("아직 보낸 상담 요청이 없습니다.")
         for rq in mine:
-            st.write(f"· {rq['receipt']} · {rq['topic']} · {rq['channel']} · 요청 전달 전문가: {next((e['name'] for e in load_experts(edb) if e['id'] == rq['expert_id']), rq['expert_id'])}")
+            st.write(f"· {rq['receipt']} · {rq['topic']} · {rq['channel']} · 요청 전달 법인: {next((e['name'] for e in load_experts(edb) if e['id'] == rq['expert_id']), rq['expert_id'])}")
 
     # ---------- 맨 위 결과 요약 (위에서 만들어 둔 자리에 채운다) ----------
     with summary:

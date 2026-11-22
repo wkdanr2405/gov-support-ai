@@ -11,7 +11,7 @@ from src.experts.db import list_experts
 
 DEMO_PASSWORD = "demo1234"
 _SALT = "gov-support-demo"
-ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN = "기업", "공인회계사/세무사", "운영자"
+ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN = "기업", "회계법인/세무법인", "운영자"
 ROLES = [ROLE_CORP, ROLE_EXPERT, ROLE_ADMIN]
 CORP_ACCOUNTS = [("corp-1", "가상전자(주) 대표"), ("corp-2", "새싹소프트(주) 대표")]
 ADMIN_ACCOUNTS = [("admin-1", "운영자")]
@@ -31,7 +31,7 @@ def accounts(conn, role: str) -> list[dict]:
     if role == ROLE_ADMIN:
         return [dict(id=i, name=n, role=role) for i, n in ADMIN_ACCOUNTS]
     if role == ROLE_EXPERT:
-        return [dict(id=e["id"], name=e["name"], role=role, firm=e["firm"]) for e in list_experts(conn, "approved")]
+        return [dict(id=e["id"], name=e["name"], role=role, kind=e["kind"]) for e in list_experts(conn, "approved")]
     return []
 
 

@@ -144,7 +144,7 @@ def build_brief_pdf(basis: str, company: dict, res: dict, docs: list[dict], matc
              k.big("첫해 예상 감면액", man_to_won(res["total_first_year"])), Spacer(1, 2 * mm)]
     if expert:
         story += [Paragraph("상담 요청", st(11)), Spacer(1, 1.5 * mm),
-                  table([["상담 전문가", f"{expert['name']} · {expert['firm']}"], ["상담 분야", topic or "-"], ["희망 방식", channel or "-"]]
+                  table([["상담 법인", f"{expert['name']} · {expert['kind']}"], ["상담 분야", topic or "-"], ["희망 방식", channel or "-"]]
                         + ([["추가로 전할 말", memo.strip()[:120]]] if memo.strip() else []), [38 * mm, 140 * mm], head=False, size=8, pad=2),
                   Spacer(1, 2 * mm)]
     story += [Paragraph("1. 기업 조건", st(11)), Spacer(1, 1.5 * mm),
