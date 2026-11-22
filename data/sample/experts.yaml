@@ -58,7 +58,7 @@ experts:
     license: "세무사"
     firm: "세무회계 온결 · 광주"
     years: 9
-    regions: ["광주 전체", "전북 전체", "전남 전체", "강원 전체"]
+    regions: ["전남광주 전체", "전북 전체", "강원 전체"]
     channels: ["전화", "화상", "대면"]
     specialties: ["disaster_loss", "integrated_employment", "sme_special_reduction"]
     industries: []

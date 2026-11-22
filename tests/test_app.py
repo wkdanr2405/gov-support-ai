@@ -225,7 +225,7 @@ def test_expert_signup_admin_approval_then_login():
     next(t for t in at.text_input if t.label.startswith("소속")).set_value("세무회계 다온 · 대구")
     next(t for t in at.text_area if t.label == "소개").set_value("제조업 연구개발비 공제를 주로 맡습니다.")
     next(m for m in at.multiselect if m.label == "전문 분야").set_value(["rnd_credit"])
-    next(m for m in at.multiselect if m.label == "활동 지역").set_value(["부산 전체"])
+    next(m for m in at.multiselect if m.label == "활동 지역 (1단계: 시·도)").set_value(["부산"])
     next(m for m in at.multiselect if m.label == "상담 방식").set_value(["화상"])
     btn(at, "가입 신청하기").click().run()
     assert any("접수되었습니다" in s.value for s in at.success)
@@ -268,11 +268,25 @@ def test_profile_form_has_etc_everywhere_district_regions_and_cpa_first():
     login_ui(at, "공인회계사/세무사", "exp-1")
     lic = next(r for r in at.radio if r.label == "자격")
     assert lic.options == ["공인회계사", "세무사", "기타"]                                            # 공인회계사가 먼저
-    for label in ("전문 분야", "활동 지역", "상담 방식", "경험 업종 (비우면 전 업종)"):
+    for label in ("전문 분야", "활동 지역 (1단계: 시·도)", "상담 방식", "경험 업종 (비우면 전 업종)"):
         ms = next(m for m in at.multiselect if m.label == label)
-        assert ms.options[-1] == "기타" and any(t.label == f"{label} · 기타 내용 (직접 입력)" for t in at.text_input)
-    reg = next(m for m in at.multiselect if m.label == "활동 지역")
-    assert "서울 강남구" in reg.options and "경기 수원시" in reg.options and "부산 전체" in reg.options
+        base = label.split(" (1단계")[0]
+        assert ms.options[-1] == "기타" and any(t.label == f"{base} · 기타 내용 (직접 입력)" for t in at.text_input), label
+    reg = next(m for m in at.multiselect if m.label == "활동 지역 (1단계: 시·도)")
+    assert "서울" in reg.options and "경기" in reg.options and "전남광주" in reg.options and "광주" not in reg.options and "전남" not in reg.options
+    assert not [m for m in at.multiselect if "2단계" in m.label and m.label.startswith("서울")]     # 고르기 전에는 하위 지역 선택이 없다
+    reg.set_value(["서울", "경기", "전남광주"]).run()                                              # 2단계가 바로 나타난다
+    sub = {m.label.split(" · ")[0]: m for m in at.multiselect if "2단계" in m.label}
+    assert "강남구" in sub["서울"].options and "수원시" in sub["경기"].options and "광주 광산구" in sub["전남광주"].options and "신안군" in sub["전남광주"].options
+    assert "구" in next(m.label for m in at.multiselect if m.label.startswith("서울 · 2단계"))
+    sub["서울"].set_value(["강남구", "서초구"])
+    sub["경기"].set_value([])                                                                        # 비우면 경기 전체
+    btn(at, "프로필 저장").click().run()
+    assert any("프로필이 저장되었습니다" in x.value for x in at.success)
+    from src.experts import load_experts
+    saved = next(e for e in load_experts(at.session_state["expert_db"]) if e["id"] == "exp-1")
+    assert saved["regions"] == ["서울 강남구", "서울 서초구", "경기 전체", "전남광주 전체"]
+    assert next(t for t in at.text_input if t.label == "상담 방식 · 기타 내용 (직접 입력)")
     # 기타 내용을 적어 저장하면 유지된다
     next(t for t in at.text_input if t.label == "상담 방식 · 기타 내용 (직접 입력)").set_value("채팅")
     next(r for r in at.radio if r.label == "자격").set_value("기타")

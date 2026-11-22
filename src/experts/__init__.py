@@ -23,13 +23,30 @@ def region_tree() -> dict[str, list[str]]:
     return yaml.safe_load(_REGION_FILE.read_text(encoding="utf-8"))
 
 
-def region_options() -> list[str]:
-    """활동 지역 선택지: 전국 → 시·도별 '서울 전체', '서울 종로구' … → 기타."""
-    out = ["전국"]
-    for sido, subs in region_tree().items():
-        out.append(f"{sido} 전체")
-        out += [f"{sido} {x}" for x in subs]
-    return out + [ETC]
+ALL_SUB = "전체"
+MERGED = {"광주": "전남광주", "전남": "전남광주"}      # 기업 화면의 이전 시·도 이름 → 통합특별시 이름 (2026-07-01 전남광주통합특별시 출범)
+SUB_KIND = {"서울": "구", "부산": "구·군", "대구": "구·군", "인천": "구·군", "전남광주": "구·시·군", "대전": "구", "울산": "구·군", "세종": "시"}
+
+
+def sido_options() -> list[str]:
+    """활동 지역 1단계 선택지: 전국 + 시·도(통합특별시 반영). '기타'는 화면에서 따로 붙인다."""
+    return ["전국"] + list(region_tree())
+
+
+def sub_options(sido: str) -> list[str]:
+    """2단계 선택지: '전체' + 구·군(광역시) 또는 시·군(도)."""
+    return [ALL_SUB] + region_tree()[sido]
+
+
+def sub_kind(sido: str) -> str:
+    return SUB_KIND.get(sido, "시·군")
+
+
+def region_values(sido: str, subs: list[str]) -> list[str]:
+    """고른 시·도와 하위 지역 → 저장 값. 비우거나 '전체'를 고르면 '서울 전체'."""
+    if not subs or ALL_SUB in subs:
+        return [f"{sido} {ALL_SUB}"]
+    return [f"{sido} {x}" for x in subs]
 
 
 def split_etc(values: list[str], options) -> tuple[list[str], str]:
@@ -76,6 +93,7 @@ def rank_experts(experts: list[dict], credit_ids: list[str], want_gov_support: b
         reasons = [CREDIT_NAMES.get(s, s) for s in hit]
         score = W_SPECIALTY * len(hit)
         everywhere = "전국" in e["regions"]
+        sido = MERGED.get(sido or "", sido)
         local = bool(sido) and any(r.split(" ", 1)[0] == sido for r in e["regions"])      # '경기 전체'·'경기 수원시' 모두 해당 시·도 활동
         region_ok = bool(sido) and (everywhere or local)
         if region_ok:

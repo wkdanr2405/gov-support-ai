@@ -108,16 +108,26 @@ def test_update_expert_changes_profile_but_keeps_requests_and_rejects_bad_input(
     assert next(e for e in load_experts(other) if e["id"] == "exp-1")["name"] == "박서윤 세무사"
 
 
-def test_region_options_are_granular_and_etc_helpers_roundtrip():
-    from src.experts import ETC, join_etc, region_options, region_tree, show_etc, split_etc
-    opts = region_options()
-    assert opts[0] == "전국" and opts[-1] == ETC
-    assert {"서울 강남구", "부산 해운대구", "대구 달성군", "인천 강화군", "광주 광산구", "대전 유성구", "울산 울주군"} <= set(opts)    # 광역시: 구·군
-    assert {"경기 수원시", "경기 가평군", "강원 춘천시", "충남 천안시", "전남 신안군", "경북 울릉군", "경남 거창군", "제주 서귀포시"} <= set(opts)  # 도: 시·군
-    assert "경기 수원시 영통구" not in opts and "서울 전체" in opts and "세종 세종시" in opts
-    assert sum(len(v) for v in region_tree().values()) == 229
+def test_region_tree_two_step_with_merged_special_city_and_incheon_reform():
+    from src.experts import ETC, join_etc, region_tree, region_values, show_etc, sido_options, split_etc, sub_kind, sub_options
+    t = region_tree()
+    assert sido_options()[0] == "전국" and "전남광주" in sido_options() and "광주" not in t and "전남" not in t     # 통합특별시 반영
+    assert "대전" in t and "충남" in t and "대구" in t and "경북" in t                                            # 대전·충남, 대구·경북은 통합되지 않았다
+    assert {"제물포구", "영종구", "서해구", "검단구", "강화군", "옹진군"} <= set(t["인천"]) and len(t["인천"]) == 11 and "서구" not in t["인천"]
+    assert "광주 광산구" in t["전남광주"] and "신안군" in t["전남광주"] and len(t["전남광주"]) == 27
+    assert {"강남구"} <= set(t["서울"]) and "해운대구" in t["부산"] and "달성군" in t["대구"] and "울주군" in t["울산"]          # 광역시: 구·군
+    assert {"수원시", "가평군"} <= set(t["경기"]) and "춘천시" in t["강원"] and "서귀포시" in t["제주"] and not any("영통" in x for x in t["경기"])  # 도: 시·군
+    assert sub_options("서울")[0] == "전체" and sub_kind("서울") == "구" and sub_kind("경기") == "시·군" and sub_kind("전남광주") == "구·시·군"
+    assert sum(len(v) for v in t.values()) == 230
+    assert region_values("서울", []) == ["서울 전체"] and region_values("서울", ["전체", "강남구"]) == ["서울 전체"] and region_values("서울", ["강남구", "송파구"]) == ["서울 강남구", "서울 송파구"]
     assert join_etc(["화상", ETC], "") == ["화상", "기타"] and join_etc(["화상"], " 우편 ") == ["화상", "기타: 우편"]
     assert split_etc(["화상", "기타: 우편"], ["화상", "전화"]) == (["화상"], "우편") and show_etc(["기타: 우편", "화상"]) == ["기타(우편)", "화상"]
+
+
+def test_rank_treats_old_gwangju_jeonnam_names_as_merged_city():
+    r = {e["id"]: e for e in rank_experts(load_experts(), ["rnd_credit"], want_gov_support=False, sido="전남")}
+    assert "전남광주 상담 가능" in r["exp-6"]["reasons"]            # 기업이 이전 이름(전남)으로 적어도 통합특별시 전문가가 맞는다
+    assert not any("상담 가능" in x and "전국" not in x for x in r["exp-4"]["reasons"])      # 영남권 전문가는 해당 없음
 
 
 def test_rank_matches_expert_by_sido_even_when_only_a_district_is_chosen():
