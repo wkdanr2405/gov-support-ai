@@ -5,6 +5,7 @@
 """
 import re
 import sqlite3
+import threading
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -32,9 +33,34 @@ def _insert(conn: sqlite3.Connection, e: dict, status: str, origin: str = "signu
                      [(e["id"], k, v) for k in LISTS for v in e.get(k, [])])
 
 
-def new_db() -> sqlite3.Connection:
-    """가상 전문가로 채운 새 메모리 데이터베이스."""
+class _LockedConn:
+    """여러 접속(스레드)이 하나의 메모리 DB를 함께 쓸 때 쿼리가 섞이지 않도록 잠금을 걸어 주는 얇은 껍데기."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._c, self._lock = conn, threading.RLock()
+
+    def execute(self, *a):
+        with self._lock:
+            return self._c.execute(*a)
+
+    def executemany(self, *a):
+        with self._lock:
+            return self._c.executemany(*a)
+
+    def executescript(self, *a):
+        with self._lock:
+            return self._c.executescript(*a)
+
+    def commit(self):
+        with self._lock:
+            self._c.commit()
+
+
+def new_db(shared: bool = False):
+    """가상 전문가로 채운 새 메모리 데이터베이스. shared=True이면 여러 접속이 함께 쓰도록 잠금을 건다."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
+    if shared:
+        conn = _LockedConn(conn)
     conn.executescript(SCHEMA)
     seed = yaml.safe_load(SEED.read_text(encoding="utf-8"))
     for e in seed["experts"]:

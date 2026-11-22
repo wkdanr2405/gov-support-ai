@@ -346,3 +346,32 @@ def test_admin_sees_approved_companies_and_firms_split_by_origin():
     assert dict(zip(corp_df["기업명"], corp_df["구분"]))["해든푸드(주)"] == "회원가입"
     assert dict(zip(firm_df["법인명"], firm_df["구분"]))["가온세무법인"] == "회원가입" and "대기회계법인" not in list(firm_df["법인명"])
     assert "대기회계법인" in md(at)                                                      # 승인 대기 쪽에는 보인다
+
+
+def test_data_survives_refresh_is_shared_across_sessions_and_admin_can_reset():
+    # 세션 1: 기업이 푸른회계법인에 상담 요청을 보낸다
+    at = demo()
+    at.radio(key="expert_pick").set_value("푸른회계법인").run()
+    consent(at).check()
+    btn(at, "상담 요청 보내기").click().run()
+    receipt = "DEMO-" + next(m.value for m in at.markdown if "DEMO-" in str(m.value)).split("DEMO-")[1][:6]
+    # 새로고침 = 새 세션(로그인은 풀리지만 데이터는 서버 메모리에 남는다)
+    at2 = fresh()
+    assert "auth" not in at2.session_state
+    login_ui(at2, "회계법인/세무법인", "푸른회계법인")
+    assert receipt in " ".join(e.label for e in at2.expander)
+    # 다른 사람(세션 3)이 가입한 기업은 운영자 세션에서도 보인다
+    at3 = fresh()
+    at3.radio(key="signup_role").set_value("기업").run()
+    next(t for t in at3.text_input if t.label.startswith("기업명")).set_value("해든푸드(주)")
+    btn(at3, "회원가입").click().run()
+    assert any("회원가입이 완료" in s.value for s in at3.success)
+    at4 = fresh()
+    login_ui(at4, "운영자", "admin-1")
+    assert "해든푸드(주)" in list(at4.dataframe[0].value["기업명"])
+    # 운영자가 되돌리면 가입·상담 요청이 사라지고 가상 계정만 남는다
+    btn(at4, "시연 데이터 처음 상태로 되돌리기").click().run()
+    assert list(at4.dataframe[0].value["기업명"]) == ["가상전자(주)", "새싹소프트(주)"]
+    at5 = fresh()
+    login_ui(at5, "회계법인/세무법인", "푸른회계법인")
+    assert receipt not in " ".join(e.label for e in at5.expander)

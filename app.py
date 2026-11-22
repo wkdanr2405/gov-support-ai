@@ -197,7 +197,15 @@ def money_input(label, key, help=None, disabled=False):
 for k in KEYS:
     st.session_state.setdefault(k, state_value(BLANK, k))
 
-edb = st.session_state.setdefault("expert_db", new_db())   # 전문가 명단 데이터베이스 (이 접속 동안만 메모리에 있음)
+@st.cache_resource
+def shared_db():
+    """회원가입·상담 요청이 담기는 시연용 데이터베이스. 서버 메모리에 하나만 있어서 새로고침해도 남고, 접속한 모든 사람이 함께 쓴다.
+    서버가 재시작·재배포되면 가상 계정만 있는 처음 상태로 돌아간다 (파일·외부 저장소에는 쓰지 않는다)."""
+    return new_db(shared=True)
+
+
+edb = shared_db()
+st.session_state["expert_db"] = edb
 # ---------- 로그인 (시연용 가상 로그인) ----------
 # 로그인하지 않으면 아래 어떤 화면도 실행되지 않는다. 역할마다 실행되는 화면 코드가 달라서 기업과 전문가는 서로의 화면·정보를 볼 수 없다.
 auth = st.session_state.get("auth")
@@ -207,7 +215,7 @@ if not auth:
 
 
 def do_logout():
-    """로그아웃: 기업 입력·결과·화면 상태를 모두 지운다. 전문가 명단·상담 요청 보관함(expert_db)만 접속 동안 남긴다."""
+    """로그아웃: 기업 입력·결과·화면 상태를 모두 지운다. 공유 데이터베이스(expert_db)는 지우지 않는다."""
     for k in list(st.session_state.keys()):
         if k != "expert_db":
             del st.session_state[k]

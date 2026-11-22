@@ -11,7 +11,7 @@ from src.experts import CREDIT_NAMES, ETC, INDUSTRY_NAMES, join_etc, show_etc, s
 from src.experts.db import (KINDS, approve_expert, get_company, list_companies, list_experts, list_requests, register_company, register_expert,
                             update_company, update_expert, virtual_contact)
 
-VIRTUAL_NOTICE = "모든 인물과 법인은 시연을 위해 지어낸 가상의 정보이며, 입력한 내용은 이 접속 동안만 메모리에 있다가 사라집니다. 실제 이름·연락처는 입력하지 마세요."
+VIRTUAL_NOTICE = "모든 인물과 법인은 시연을 위해 지어낸 가상의 정보이며, 회원가입과 상담 요청 내용은 서버 메모리에 담겨 접속한 모든 사람이 함께 쓰며, 서버가 다시 시작되면 사라집니다. 실제 이름·연락처는 입력하지 마세요."
 
 
 CHANNELS = ["화상", "전화", "대면", ETC]
@@ -163,6 +163,10 @@ ORIGIN_LABEL = {"seed": "가상 시연 데이터", "signup": "회원가입"}
 def render_admin_home(edb) -> None:
     """운영자 화면: 법인 회원가입 승인, 그리고 승인된 기업·법인 현황 (가상 시연 데이터와 회원가입 계정을 구분해 표시)."""
     pending = list_experts(edb, "pending")
+    st.caption("회원가입·상담 요청 데이터는 서버 메모리에 하나만 있어 접속한 모든 사람에게 공유되고, 새로고침해도 남습니다 (서버 재시작 시 초기화).")
+    if st.button("시연 데이터 처음 상태로 되돌리기", key="reset_demo", help="회원가입·상담 요청을 모두 지우고 가상 기업 2곳·법인 6곳만 남깁니다."):
+        st.cache_resource.clear()
+        st.rerun()
     st.markdown("##### 승인 대기 (회계법인/세무법인 회원가입)")
     if not pending:
         st.info("승인을 기다리는 회원가입이 없습니다. 로그아웃 후 '회원가입' 탭에서 회계법인/세무법인으로 가입해 볼 수 있습니다.")
