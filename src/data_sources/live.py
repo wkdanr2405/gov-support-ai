@@ -11,7 +11,7 @@ from .status import sample_status, snapshot_info, source_label, source_status
 NORMALIZERS = {"kstartup": kstartup.normalize, "bizinfo": bizinfo.normalize}
 DEFAULT_FETCHERS = {"kstartup": lambda timeout=8: kstartup.fetch_raw(timeout=timeout, retries=1),
                     "bizinfo": lambda timeout=8: bizinfo.fetch_raw(timeout=timeout)}
-OUTAGE_MODES = {"off": "끔", "partial": "일부 실패 (K-Startup만)", "all": "모두 실패 (저장본으로 대체)", "nosnap": "모두 실패 + 저장본 없음 (가상 샘플로 대체)"}
+OUTAGE_MODES = {"off": "끔 (실제 조회 결과대로 표시)", "partial": "일부 실패 (K-Startup만)", "all": "모두 실패 (저장본으로 대체)", "nosnap": "모두 실패 + 저장본 없음 (가상 샘플로 대체)"}
 
 
 def explain_error(e: Exception) -> str:
