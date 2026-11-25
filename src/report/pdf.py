@@ -120,12 +120,9 @@ def _appendix(k: "_Kit", matches: list[dict], notes: list[str], ev: dict | None)
         story.append(table([["원문 링크"]] + [[f"{i}. {r['url']}"] for i, r in enumerate(links, 1)], [178 * mm], size=6.5, pad=1.5))
     story.append(Spacer(1, 3 * mm))
     story += [Paragraph("D. 공고 데이터 기준", st(11)), Spacer(1, 1.5 * mm)]
-    drows = []
-    for s in ev["data_status"]:
-        if s["mode"] == "snapshot":
-            drows.append([s["label"], f"저장본 {s['count']:,}건 · 수집 {s['date']} ({s['age_days']}일 경과)"])
-        else:
-            drows.append([s["label"], f"가상 샘플 {s['count']:,}건 · 실제 공고가 아니며 외부 API 저장본이 없어 대체함"])
+    from src.data_sources.status import describe
+    drows = [[s["label"], describe(s, with_label=False) + (" · 실제 공고가 아니며 저장본이 없어 대체함" if s["mode"] == "sample" else "")]
+             for s in ev["data_status"]]
     if ev["data_status"]:
         ex = ev["excluded"]
         drows.append(["후보 선별", f"조건 불일치로 제외 {sum(ex.values()):,}건 (" + ", ".join(f"{a} {b:,}" for a, b in ex.items()) + f") · 점수 계산 {ev['scored']:,}건"])

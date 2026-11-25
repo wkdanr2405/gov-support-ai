@@ -17,7 +17,11 @@ try:
 except Exception:
     pass  # secrets 파일이 없으면 건너뜀 (키 없이도 기본 문장·저장본으로 동작)
 
-from src.data_sources import load_announcements
+from src.data_sources import live as live_src
+from src.data_sources.live import load_with_status
+from src.data_sources.status import describe, item_source_line
+from src.flags import shared_flags
+from src.ui_data import show_banner
 from src.data_sources.common import CAPITAL_AREA, SIDO
 from src.tax_engine.regions import classify, sigungu_options
 from src.matching import Embedder, build_profile, match
@@ -33,7 +37,6 @@ from src.report.pdf import build_brief_pdf, build_pdf
 
 from src.tax_engine import calculate, industry_list, judge_sme, scenario
 from src.tax_engine.params import load_params
-from src.data_sources.status import source_status
 
 DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합니다."
 
@@ -398,9 +401,16 @@ with top_cust:
 
         @st.cache_data
         def get_announcements():
-            return load_announcements()
+            return load_with_status(None)          # 조회를 시도하지 않고 저장본을 쓴다
 
-        anns, src_desc = get_announcements()
+        if st.button("최신 공고 확인 (실시간 조회)", key="live_btn",
+                     help="공고 서버에 지금 연결해 최신 공고를 받아 봅니다. 실패하면 저장본으로 대체하고 이유를 알려 드립니다."):
+            with st.spinner("공고 서버에 연결하는 중입니다 (최대 30초)"):
+                _items, _sts = load_with_status(live_src.DEFAULT_FETCHERS, force=shared_flags()["api_outage"])
+                st.session_state["live"] = {"items": _items, "statuses": _sts}
+        _live = st.session_state.get("live")
+        anns, statuses = (_live["items"], _live["statuses"]) if _live else get_announcements()
+        show_banner(statuses)
         profile = build_profile(label.split(" ", 1)[1], sido, founded, int(ep), int(ec), int(yp), int(yc), float(rnd_curr))
         try:
             out = match(profile, anns, get_embedder() if use_ai else None, top_n=TOP_N)
@@ -419,6 +429,7 @@ with top_cust:
                 st.markdown(f"**{r['title']}**")
                 st.caption(f"{dd} · 추천 점수 {r['score']} · {r['agency']} · {r['region']}")
                 st.caption(f"대상: {r['target']}")
+                st.caption(item_source_line(r, statuses))
                 st.write("근거 키워드: " + (", ".join(r["matched_keywords"]) or "없음") +
                          ("" if r["semantic"] is None else f" · 의미 유사도 {r['semantic']}"))
                 for f in r["flags"]:
@@ -431,7 +442,8 @@ with top_cust:
         st.info("공고 신청 자격은 원문 공고로 반드시 확인하세요. 추천 점수는 키워드와 의미 유사도를 섞은 상대값으로, 추천 순서를 정하는 데만 씁니다.")
         ex_ = out["excluded"]
         with st.expander("데이터 출처와 제외된 공고"):
-            st.write(f"공고 데이터: {src_desc}")
+            for _s in statuses:
+                st.write("공고 데이터 · " + describe(_s))
             st.write(f"조건에 맞지 않아 제외한 공고 {sum(ex_.values()):,}건 "
                      f"(마감 {ex_.get('마감', 0):,}, 교육·행사 {ex_.get('교육·행사', 0):,}, 지역 {ex_.get('지역', 0):,}, 업력 {ex_.get('업력', 0):,}) · "
                      f"점수를 계산한 공고 {out['scored']:,}건")
@@ -452,7 +464,7 @@ with top_cust:
                       ["평균 매출액 · 자산총액", f"{fmt_won(revenue_w)}원 · {fmt_won(assets_w)}원"],
                       ["상시근로자", f"전년 {int(ep)}명 → 당해 {int(ec)}명 (청년 등 {int(yp)}명 → {int(yc)}명)"],
                       ["연구·인력개발비", f"당해 {fmt_won(rnd_curr_w)}원 · 전년 {fmt_won(rnd_prev_w)}원"]]
-        evidence = build_evidence(res, sme if not sme_blank else None, load_params(2026), out["items"], source_status(), out["excluded"],
+        evidence = build_evidence(res, sme if not sme_blank else None, load_params(2026), out["items"], statuses, out["excluded"],
                                   out["scored"], input_rows)
         with st.expander("계산·추천 근거 (PDF 2쪽 부록과 같은 내용)"):
             st.markdown("**세액공제·감면 계산 근거**")

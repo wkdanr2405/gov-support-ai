@@ -43,7 +43,7 @@ def normalize(item: dict) -> dict:
     )
 
 
-def fetch_raw(api_key: str | None = None, max_items: int = 300, per_page: int = 100, recruiting_only: bool = True, timeout: int = 20) -> list[dict]:
+def fetch_raw(api_key: str | None = None, max_items: int = 300, per_page: int = 100, recruiting_only: bool = True, timeout: int = 20, retries: int = 4) -> list[dict]:
     """공고 원본을 페이지 단위로 받아온다. 키는 환경변수 DATA_GO_KR_API_KEY(.env)에서 읽고, 오류 메시지에 키를 남기지 않는다."""
     key = api_key or os.environ.get("DATA_GO_KR_API_KEY", "")
     if not key:
@@ -55,12 +55,12 @@ def fetch_raw(api_key: str | None = None, max_items: int = 300, per_page: int = 
         if recruiting_only:
             params["cond[rcrt_prgs_yn::EQ]"] = "Y"
         resp = None
-        for attempt in range(4):
+        for attempt in range(retries):
             try:
                 resp = requests.get(f"{BASE_URL}/{ANNOUNCEMENT_PATH}", params=params, timeout=timeout)
                 break
             except requests.RequestException as e:
-                if attempt == 3:
+                if attempt == retries - 1:
                     raise RuntimeError("K-Startup API 연결 실패: " + str(e).replace(key, "***")) from None
                 time.sleep(2 * (attempt + 1))
         if resp.status_code != 200:

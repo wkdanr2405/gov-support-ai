@@ -167,6 +167,13 @@ def render_admin_home(edb) -> None:
     if st.button("시연 데이터 처음 상태로 되돌리기", key="reset_demo", help="회원가입·상담 요청을 모두 지우고 가상 기업 2곳·법인 6곳만 남깁니다."):
         st.cache_resource.clear()
         st.rerun()
+    from src.data_sources.live import OUTAGE_MODES
+    from src.flags import shared_flags
+    flags = shared_flags()
+    st.markdown("##### 외부 API 장애 시연")
+    flags["api_outage"] = st.selectbox("기업 화면에서 '최신 공고 확인'을 누르면", list(OUTAGE_MODES), index=list(OUTAGE_MODES).index(flags["api_outage"]),
+                                        format_func=OUTAGE_MODES.get, key="outage_mode",
+                                        help="발표 때 외부 공고 서버가 실패한 상황을 보여 주는 스위치입니다. 실제 장애가 아니며 서버가 재시작되면 꺼집니다.")
     st.markdown("##### 승인 대기 (회계법인/세무법인 회원가입)")
     if not pending:
         st.info("승인을 기다리는 회원가입이 없습니다. 로그아웃 후 '회원가입' 탭에서 회계법인/세무법인으로 가입해 볼 수 있습니다.")

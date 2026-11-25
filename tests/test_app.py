@@ -1,6 +1,7 @@
 """화면(app.py)을 실제로 돌려 보는 점검. 임베딩은 끄고(키워드 점수만) 빠르게 확인한다."""
 from pathlib import Path
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
@@ -387,3 +388,36 @@ def test_report_tab_shows_basis_and_pdf_has_appendix():
     frames = [d.value for d in at.dataframe]
     basis = next(f for f in frames if "적용 조문" in f.columns)
     assert any("조세특례제한법" in v for v in basis["적용 조문"]) and basis["확인 상태"].str.contains("조문 확인").any()
+
+
+def _alerts(at):
+    return " ".join(str(e.value) for kind in (at.success, at.info, at.warning, at.error) for e in kind)
+
+
+def test_data_banner_default_snapshot_is_shown_with_age_and_source_line():
+    at = demo()
+    t = _alerts(at)
+    assert "저장본 공고를 기준으로 추천했습니다" in t and "최신 공고 확인" in t
+    assert any("출처:" in str(c.value) and "공고번호" in str(c.value) for c in at.caption)      # 공고 카드마다 출처·번호·기준 시점
+
+
+@pytest.mark.parametrize("mode,title", [("all", "저장본으로 추천했습니다"), ("partial", "저장본으로 추천했습니다"), ("nosnap", "가상 샘플 공고를 보여 드립니다")])
+def test_outage_demo_shows_failure_screen(mode, title):
+    from src.flags import shared_flags
+    at = demo()
+    shared_flags()["api_outage"] = mode
+    btn(at, "최신 공고 확인 (실시간 조회)").click().run()
+    assert not at.exception
+    t = _alerts(at)
+    assert title in t and "장애 시연" in t
+    if mode == "nosnap":
+        assert "실제 공고가 아니" in t and any("실제 공고 아님" in str(c.value) for c in at.caption)
+    else:
+        assert "원문 링크에서 확인" in t
+
+
+def test_admin_can_switch_outage_demo():
+    from src.flags import shared_flags
+    at = login_ui(fresh(), "운영자", "admin-1")
+    at.selectbox(key="outage_mode").select("all").run()
+    assert shared_flags()["api_outage"] == "all"
