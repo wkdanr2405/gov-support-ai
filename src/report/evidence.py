@@ -35,13 +35,12 @@ def tax_rows(res: dict, sme: dict | None, params: dict) -> list[dict]:
 def match_rows(matches: list[dict], limit: int = 3) -> list[dict]:
     rows = []
     for m in matches[:limit]:
-        sample = m.get("is_sample") or m.get("source") == "sample"
         parts = [f"키워드 {m.get('keyword', '-')}"]
         parts.append(f"의미 {m['semantic']}" if m.get("semantic") is not None else "의미 점수 미사용")
         kws = ", ".join(m.get("matched_keywords", [])[:4]) or "없음"
         why = f"일치 키워드: {kws} · 점수 {' / '.join(parts)} → 종합 {m.get('score', '-')}점(상대값)"
         rows.append({"title": m["title"], "agency": m.get("agency", ""), "id": m.get("id", ""),
-                     "source_label": source_label("sample") if sample else source_label(m.get("source", "")), "sample": sample,
+                     "source_label": source_label(m.get("source", "")),
                      "deadline": "상시/확인 필요" if m.get("d_day") is None else f"D-{m['d_day']} ({m.get('period_end')})",
                      "url": m.get("url", ""), "why": why, "flags": list(m.get("flags", []))})
     return rows

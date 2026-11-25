@@ -411,18 +411,22 @@ with top_cust:
         _live = st.session_state.get("live")
         anns, statuses = (_live["items"], _live["statuses"]) if _live else get_announcements()
         show_banner(statuses)
-        profile = build_profile(label.split(" ", 1)[1], sido, founded, int(ep), int(ec), int(yp), int(yc), float(rnd_curr))
-        try:
-            out = match(profile, anns, get_embedder() if use_ai else None, top_n=TOP_N)
-        except Exception as e:  # 모델 내려받기 실패 등
-            st.warning(f"의미 기반 점수를 쓸 수 없어 키워드 점수만 사용합니다. ({type(e).__name__})")
-            out = match(profile, anns, None, top_n=TOP_N)
+        if anns:
+            profile = build_profile(label.split(" ", 1)[1], sido, founded, int(ep), int(ec), int(yp), int(yc), float(rnd_curr))
+            try:
+                out = match(profile, anns, get_embedder() if use_ai else None, top_n=TOP_N)
+            except Exception as e:  # 모델 내려받기 실패 등
+                st.warning(f"의미 기반 점수를 쓸 수 없어 키워드 점수만 사용합니다. ({type(e).__name__})")
+                out = match(profile, anns, None, top_n=TOP_N)
+        else:                                         # 실시간도 저장본도 없으면 추천만 못 한다 (세액 계산은 그대로)
+            out = {"items": [], "excluded": {}, "scored": 0}
         items = out["items"]
         n_pages = max(1, -(-len(items) // PAGE_SIZE))
         page = st.session_state.get("match_page", 1)
         if page > n_pages:                       # 입력이 바뀌어 공고 수가 줄었으면 첫 쪽으로
             page = st.session_state["match_page"] = 1
-        st.caption(f"조건에 맞는 공고 중 점수가 높은 {len(items)}건 · {page}/{n_pages}쪽 ({PAGE_SIZE}건씩)")
+        if anns:
+            st.caption(f"조건에 맞는 공고 중 점수가 높은 {len(items)}건 · {page}/{n_pages}쪽 ({PAGE_SIZE}건씩)")
         for r in items[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]:
             dd = "상시" if r["d_day"] is None else f"D-{r['d_day']}"
             with st.container(border=True):
@@ -472,7 +476,7 @@ with top_cust:
                                         "확인 상태": r["status"]} for r in evidence["tax_rows"]]), hide_index=True, use_container_width=True)
             st.markdown("**추천 공고 근거**")
             for r in evidence["match_rows"]:
-                st.markdown(f"- **{r['title']}** · {r['source_label']}" + ("" if r["sample"] or not r["id"] else f" · 번호 {r['id']}")
+                st.markdown(f"- **{r['title']}** · {r['source_label']}" + ("" if not r["id"] else f" · 번호 {r['id']}")
                             + f" · 마감 {r['deadline']}  \n  {r['why']}" + (f"  \n  원문: {r['url']}" if r["url"] else ""))
             for s_ in evidence["data_status"]:
                 st.caption(f"공고 데이터: {s_['label']} " + (f"저장본 {s_['count']:,}건 · 수집 {s_['date']} ({s_['age_days']}일 경과)" if s_["mode"] == "snapshot"

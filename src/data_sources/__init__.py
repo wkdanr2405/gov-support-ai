@@ -1,4 +1,4 @@
-"""공고 데이터 출처. 저장본 → (없으면) 가상 샘플 순서로 읽는다. 실제 호출은 scripts/fetch_snapshots.py가 한다."""
+"""공고 데이터 출처 (테스트·스크립트용 읽기 함수; 화면은 live.load_with_status를 쓰며 가상 샘플을 보여 주지 않는다). 실제 호출은 scripts/fetch_snapshots.py가 한다."""
 import json
 
 from . import bizinfo, kstartup

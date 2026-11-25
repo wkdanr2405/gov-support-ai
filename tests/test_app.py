@@ -391,7 +391,7 @@ def test_report_tab_shows_basis_and_pdf_has_appendix():
 
 
 def _alerts(at):
-    return " ".join(str(e.value) for kind in (at.success, at.info, at.warning, at.error) for e in kind)
+    return " ".join(str(e.value) for kind in (at.success, at.info, at.warning, at.error, at.markdown) for e in kind)
 
 
 def test_data_banner_default_snapshot_is_shown_with_age_and_source_line():
@@ -401,7 +401,7 @@ def test_data_banner_default_snapshot_is_shown_with_age_and_source_line():
     assert any("출처:" in str(c.value) and "공고번호" in str(c.value) for c in at.caption)      # 공고 카드마다 출처·번호·기준 시점
 
 
-@pytest.mark.parametrize("mode,title", [("all", "저장본으로 추천했습니다"), ("partial", "저장본으로 추천했습니다"), ("nosnap", "가상 샘플 공고를 보여 드립니다")])
+@pytest.mark.parametrize("mode,title", [("all", "저장본으로 추천했습니다"), ("partial", "추천했습니다"), ("nosnap", "추천할 수 없습니다")])
 def test_outage_demo_shows_failure_screen(mode, title):
     from src.flags import shared_flags
     at = demo()
@@ -411,7 +411,7 @@ def test_outage_demo_shows_failure_screen(mode, title):
     t = _alerts(at)
     assert title in t and "장애 시연" in t
     if mode == "nosnap":
-        assert "실제 공고가 아니" in t and any("실제 공고 아님" in str(c.value) for c in at.caption)
+        assert "세액공제" in t and "샘플" not in t and not any("출처:" in str(c.value) for c in at.caption)
     else:
         assert "원문 링크에서 확인" in t
 

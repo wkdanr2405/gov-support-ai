@@ -108,7 +108,7 @@ def _appendix(k: "_Kit", matches: list[dict], notes: list[str], ev: dict | None)
     story += [Paragraph("C. 추천 공고 근거 (상위 3건)", st(11)), Spacer(1, 1.5 * mm)]
     rows = [["공고", "출처 · 공고번호", "마감", "추천 근거"]]
     for r in ev["match_rows"]:
-        num = "" if r["sample"] else (f" · 번호 {r['id']}" if r["id"] else "")
+        num = f" · 번호 {r['id']}" if r["id"] else ""
         why = r["why"] + ("".join(f" · 확인 필요: {f}" for f in r["flags"]))
         rows.append([r["title"][:60] + (f" ({r['agency']})" if r["agency"] else ""), r["source_label"] + num, r["deadline"], why])
     if len(rows) == 1:
@@ -121,7 +121,7 @@ def _appendix(k: "_Kit", matches: list[dict], notes: list[str], ev: dict | None)
     story.append(Spacer(1, 3 * mm))
     story += [Paragraph("D. 공고 데이터 기준", st(11)), Spacer(1, 1.5 * mm)]
     from src.data_sources.status import describe
-    drows = [[s["label"], describe(s, with_label=False) + (" · 실제 공고가 아니며 저장본이 없어 대체함" if s["mode"] == "sample" else "")]
+    drows = [[s["label"], describe(s, with_label=False)]
              for s in ev["data_status"]]
     if ev["data_status"]:
         ex = ev["excluded"]

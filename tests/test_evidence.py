@@ -18,8 +18,8 @@ INP = {"region": "capital", "employees_prev": 10, "employees_curr": 15, "youth_p
 M = [{"id": "179674", "source": "kstartup", "title": "기술개발 지원사업", "agency": "가상기관", "d_day": 18, "period_end": "2026-12-20",
       "url": "https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=179674", "score": 62.0, "keyword": 0.6,
       "semantic": 0.71, "matched_keywords": ["기술개발", "R&D"], "flags": ["시·군·구 확인 필요"], "is_sample": False},
-     {"id": "s-1", "source": "sample", "title": "샘플 사업", "agency": "가상", "d_day": None, "period_end": None, "url": "", "score": 40.0,
-      "keyword": 0.4, "semantic": None, "matched_keywords": [], "flags": [], "is_sample": True}]
+     {"id": "b-1", "source": "bizinfo", "title": "기업마당 사업", "agency": "가상", "d_day": None, "period_end": None, "url": "", "score": 40.0,
+      "keyword": 0.4, "semantic": None, "matched_keywords": [], "flags": [], "is_sample": False}]
 
 
 def _ev(matches=M):
@@ -55,7 +55,7 @@ def test_match_rows_have_source_id_link_and_score_parts():
     a, b = ev["match_rows"]
     assert a["source_label"].startswith("K-Startup") and a["id"] == "179674" and a["url"].startswith("https://")
     assert "키워드 0.6" in a["why"] and "의미 0.71" in a["why"] and "기술개발" in a["why"]
-    assert "실제 공고 아님" in b["source_label"]
+    assert b["source_label"].startswith("기업마당") and "sample" not in b
 
 
 def test_pdf_has_appendix_page_with_basis_and_sources():
@@ -67,7 +67,7 @@ def test_pdf_has_appendix_page_with_basis_and_sources():
     r = pypdf.PdfReader(BytesIO(pdf))
     assert len(r.pages) == 2
     p2 = r.pages[1].extract_text().replace("\n", "").replace(" ", "")
-    for must in ("조세특례제한법제29조의8", "미확인", "K-Startup", "179674", "pbancSn=179674", "수집", "실제공고아님"):
+    for must in ("조세특례제한법제29조의8", "미확인", "K-Startup", "179674", "pbancSn=179674", "수집", "기업마당"):
         assert must in p2, must
     p1 = r.pages[0].extract_text().replace(" ", "")
     assert "부록" in p1                                                  # 1쪽에서 부록 위치를 안내한다

@@ -1,13 +1,12 @@
 """공고 데이터 출처 상태. PDF 부록과 화면이 '어느 출처를, 언제 받은 저장본으로, 몇 건 썼는지', 그리고 실시간 조회가 실패했는지를 알릴 때 쓴다.
 
 상태(mode): live 실시간 조회 성공 / fallback 실시간 조회 실패 → 저장본 사용 / snapshot 조회를 시도하지 않고 저장본 사용 /
-missing 조회 실패에 저장본도 없음 / sample 쓸 수 있는 실제 공고가 없어 가상 샘플 사용."""
-import json
+missing 조회 실패에 저장본도 없음 / empty 조회도 안 했고 저장본도 없음. 가상 샘플 공고는 화면에 쓰지 않는다."""
 from datetime import date
 
-from .snapshots import SAMPLE_PATH, SNAP_DIR, load_snapshot
+from .snapshots import SNAP_DIR, load_snapshot
 
-LABELS = {"kstartup": "K-Startup (창업진흥원)", "bizinfo": "기업마당 (중소벤처기업부)", "sample": "가상 샘플 공고 (실제 공고 아님)"}
+LABELS = {"kstartup": "K-Startup (창업진흥원)", "bizinfo": "기업마당 (중소벤처기업부)"}
 OLD_DAYS = 7      # 저장본이 이 날수보다 오래되면 '오래됨'으로 알린다
 
 
@@ -23,11 +22,6 @@ def snapshot_info(code: str, directory=SNAP_DIR, today: date | None = None) -> d
     return {"count": snap["count"], "date": d, "age_days": ((today or date.today()) - date.fromisoformat(d)).days}
 
 
-def sample_status() -> dict:
-    n = len(json.loads(SAMPLE_PATH.read_text(encoding="utf-8")))
-    return {"source": "sample", "label": source_label("sample"), "mode": "sample", "count": n, "date": "", "age_days": None, "reason": ""}
-
-
 def source_status(directory=SNAP_DIR, today: date | None = None) -> list[dict]:
     """조회를 시도하지 않고 저장본을 쓸 때의 출처별 상태."""
     out = []
@@ -35,7 +29,9 @@ def source_status(directory=SNAP_DIR, today: date | None = None) -> list[dict]:
         info = snapshot_info(code, directory, today)
         if info:
             out.append({"source": code, "label": source_label(code), "mode": "snapshot", "reason": "", **info})
-    return out or [sample_status()]
+        else:
+            out.append({"source": code, "label": source_label(code), "mode": "empty", "reason": "", "count": 0, "date": "", "age_days": None})
+    return out
 
 
 def describe(s: dict, with_label: bool = True) -> str:
@@ -48,21 +44,28 @@ def describe(s: dict, with_label: bool = True) -> str:
         return f"{lab}실시간 조회 실패({s['reason']}) → {snap} 사용"
     if m == "snapshot":
         return f"{lab}{snap}"
+    if m == "empty":
+        return f"{lab}저장본 없음"
     if m == "missing":
         return f"{lab}실시간 조회 실패({s['reason']}), 저장본도 없음"
     return f"{lab}{s['count']:,}건"
 
 
 def banner(statuses: list[dict]) -> dict:
-    """사용자에게 보여 줄 안내 띠. level은 success/info/warning/error."""
+    """사용자에게 보여 줄 안내 띠. level은 success/info/warning/error. 실패 화면은 모두 error(붉은색, ❌)로 통일한다."""
     note = "최신 공고와 다를 수 있습니다. 마감과 신청 자격은 반드시 원문 링크에서 확인하세요."
-    if any(s["mode"] == "sample" for s in statuses):
-        lines = [describe(s) for s in statuses if s["mode"] == "missing"]
-        return {"level": "error", "title": "실제 공고를 불러오지 못해 가상 샘플 공고를 보여 드립니다",
-                "lines": lines + ["샘플은 실제 공고가 아니므로 이 추천을 신청 판단에 쓰지 마세요. 잠시 뒤 '최신 공고 확인'으로 다시 시도해 주세요."]}
-    if any(s["mode"] in ("fallback", "missing") for s in statuses):
-        return {"level": "warning", "title": "최신 공고를 불러오지 못해 저장본으로 추천했습니다",
-                "lines": [describe(s) for s in statuses] + [note + " '최신 공고 확인'으로 다시 시도할 수 있습니다."]}
+    usable = [s for s in statuses if s["mode"] in ("live", "fallback", "snapshot")]
+    if not usable:
+        return {"level": "error", "title": "공고를 불러오지 못해 지원사업을 추천할 수 없습니다",
+                "lines": [describe(s) for s in statuses] +
+                         ["세액공제·감면 예상액 계산은 공고와 관계없이 계속 사용할 수 있습니다. 잠시 뒤 '최신 공고 확인'으로 다시 시도해 주세요."]}
+    failed = [s for s in statuses if s["mode"] in ("fallback", "missing")]
+    if failed:
+        if len(failed) == len(statuses):
+            return {"level": "error", "title": "최신 공고를 불러오지 못해 저장본으로 추천했습니다",
+                    "lines": [describe(s) for s in statuses] + [note + " '최신 공고 확인'으로 다시 시도할 수 있습니다."]}
+        return {"level": "error", "title": "일부 공고를 불러오지 못해 저장본을 섞어 추천했습니다",
+                "lines": [("❌ " if s in failed else "✅ ") + describe(s) for s in statuses] + [note + " '최신 공고 확인'으로 다시 시도할 수 있습니다."]}
     if all(s["mode"] == "live" for s in statuses):
         return {"level": "success", "title": "실시간 공고를 불러왔습니다", "lines": [describe(s) for s in statuses]}
     lines = [describe(s) for s in statuses]
@@ -75,8 +78,6 @@ def banner(statuses: list[dict]) -> dict:
 
 def item_source_line(item: dict, statuses: list[dict]) -> str:
     """공고 카드 한 줄: 출처 · 공고번호 · 어느 시점 자료인지."""
-    if item.get("is_sample") or item.get("source") == "sample":
-        return "출처: 가상 샘플 (실제 공고 아님)"
     st = next((s for s in statuses if s["source"] == item.get("source")), None)
     when = ""
     if st:

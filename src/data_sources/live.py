@@ -1,17 +1,16 @@
 """공고 실시간 조회 시도 + 실패 시 저장본·샘플로 대체. 실패 이유는 쉬운 말로 바꾸고 API 키는 어디에도 남기지 않는다.
-force는 발표용 '장애 시연' 모드: partial=K-Startup만 실패, all=둘 다 실패(저장본 사용), nosnap=둘 다 실패하고 저장본도 없음(샘플 사용)."""
-import json
+force는 발표용 '장애 시연' 모드: partial=K-Startup만 실패, all=둘 다 실패(저장본 사용), nosnap=둘 다 실패하고 저장본도 없음(공고 없음 → 추천 불가). 가상 샘플 공고는 쓰지 않는다."""
 import re
 from datetime import date
 
 from . import bizinfo, kstartup
-from .snapshots import SAMPLE_PATH, SNAP_DIR, load_snapshot
-from .status import sample_status, snapshot_info, source_label, source_status
+from .snapshots import SNAP_DIR, load_snapshot
+from .status import snapshot_info, source_label, source_status
 
 NORMALIZERS = {"kstartup": kstartup.normalize, "bizinfo": bizinfo.normalize}
 DEFAULT_FETCHERS = {"kstartup": lambda timeout=8: kstartup.fetch_raw(timeout=timeout, retries=1),
                     "bizinfo": lambda timeout=8: bizinfo.fetch_raw(timeout=timeout)}
-OUTAGE_MODES = {"off": "끔 (실제 조회 결과대로 표시)", "partial": "일부 실패 (K-Startup만)", "all": "모두 실패 (저장본으로 대체)", "nosnap": "모두 실패 + 저장본 없음 (가상 샘플로 대체)"}
+OUTAGE_MODES = {"off": "끔 (실제 조회 결과대로 표시)", "partial": "일부 실패 (K-Startup만)", "all": "모두 실패 (저장본으로 대체)", "nosnap": "공고 없음 (모두 실패 + 저장본 없음)"}
 
 
 def explain_error(e: Exception) -> str:
@@ -68,7 +67,4 @@ def load_with_status(fetchers: dict | None, directory=SNAP_DIR, force: str | Non
                     statuses.append({**base, "mode": "fallback", **info})
                 else:
                     statuses.append({**base, "mode": "missing", "count": 0, "date": "", "age_days": None})
-    if not items:
-        items = json.loads(SAMPLE_PATH.read_text(encoding="utf-8"))
-        statuses = [s for s in statuses if s["mode"] == "missing"] + [sample_status()]
     return items, statuses

@@ -61,7 +61,7 @@ def test_one_source_fails_falls_back_to_its_snapshot_and_says_why(snaps):
     assert s["bizinfo"]["mode"] == "live"
     assert {i["title"] for i in items} == {"저장본 사업 K", "실시간 기업마당 사업"}
     b = banner(st)
-    assert b["level"] == "warning" and "저장본" in b["title"] and any("K-Startup" in x and "연결" in x for x in b["lines"])
+    assert b["level"] == "error" and "저장본" in b["title"] and any("K-Startup" in x and "연결" in x for x in b["lines"])
     assert "원문" in " ".join(b["lines"])
 
 
@@ -73,12 +73,24 @@ def test_reason_texts_are_plain_and_never_leak_keys(snaps):
         assert word in r and ".env" not in r and "Traceback" not in r
 
 
-def test_both_fail_and_no_snapshot_uses_sample_with_error_banner(tmp_path):
+def test_both_fail_and_no_snapshot_means_no_announcements_and_no_sample(tmp_path):
     items, st = live.load_with_status({"kstartup": boom("연결 실패"), "bizinfo": boom("연결 실패")}, directory=tmp_path)
-    assert items and all(i["is_sample"] for i in items)
-    assert by(st)["sample"]["mode"] == "sample"
+    assert items == [] and all(s["mode"] == "missing" for s in st)
     b = banner(st)
-    assert b["level"] == "error" and "실제 공고" in " ".join([b["title"], *b["lines"]]) and "샘플" in b["title"]
+    assert b["level"] == "error" and "추천할 수 없습니다" in b["title"] and "세액공제" in " ".join(b["lines"])
+    assert "샘플" not in " ".join([b["title"], *b["lines"]])
+
+
+def test_partial_failure_banner_is_red_with_per_line_marks(snaps):
+    _, st = run(snaps, force="partial")
+    b = banner(st)
+    assert b["level"] == "error" and "일부" in b["title"]
+    assert b["lines"][0].startswith("❌") and b["lines"][1].startswith("✅")
+
+
+def test_all_failure_with_snapshot_is_red(snaps):
+    _, st = run(snaps, force="all")
+    assert banner(st)["level"] == "error" and "저장본으로 추천했습니다" in banner(st)["title"]
 
 
 @pytest.mark.parametrize("force,expect", [("partial", {"kstartup": "fallback", "bizinfo": "live"}),
@@ -89,9 +101,9 @@ def test_outage_demo_modes(snaps, force, expect):
     assert "장애 시연" in by(st)["kstartup"]["reason"]
 
 
-def test_outage_demo_nosnap_shows_sample(snaps):
+def test_outage_demo_nosnap_shows_no_announcements(snaps):
     items, st = run(snaps, force="nosnap")
-    assert by(st)["sample"]["mode"] == "sample" and all(i["is_sample"] for i in items)
+    assert items == [] and all(s["mode"] == "missing" for s in st)
 
 
 def test_describe_lines(snaps):
