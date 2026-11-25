@@ -47,7 +47,7 @@ def describe(s: dict, with_label: bool = True) -> str:
     if m == "empty":
         return f"{lab}저장본 없음"
     if m == "missing":
-        return f"{lab}실시간 조회 실패({s['reason']}), 저장본도 없음"
+        return f"{lab}실시간 조회 실패({s['reason']}) → 이 출처의 공고는 추천에서 제외"
     return f"{lab}{s['count']:,}건"
 
 
@@ -61,11 +61,9 @@ def banner(statuses: list[dict]) -> dict:
                          ["세액공제·감면 예상액 계산은 공고와 관계없이 계속 사용할 수 있습니다. 잠시 뒤 '최신 공고 확인'으로 다시 시도해 주세요."]}
     failed = [s for s in statuses if s["mode"] in ("fallback", "missing")]
     if failed:
-        if len(failed) == len(statuses):
-            return {"level": "error", "title": "최신 공고를 불러오지 못해 저장본으로 추천했습니다",
-                    "lines": [describe(s) for s in statuses] + [note + " '최신 공고 확인'으로 다시 시도할 수 있습니다."]}
-        return {"level": "error", "title": "일부 공고를 불러오지 못해 저장본을 섞어 추천했습니다",
-                "lines": [("❌ " if s in failed else "✅ ") + describe(s) for s in statuses] + [note + " '최신 공고 확인'으로 다시 시도할 수 있습니다."]}
+        return {"level": "error", "title": "일부 공고를 불러오지 못해 나머지 공고만으로 추천했습니다",
+                "lines": [("❌ " if s in failed else "✅ ") + describe(s) for s in statuses] +
+                         ["실패한 출처의 공고는 추천 목록에 없습니다. '최신 공고 확인'으로 다시 시도할 수 있습니다. 마감과 신청 자격은 반드시 원문 링크에서 확인하세요."]}
     if all(s["mode"] == "live" for s in statuses):
         return {"level": "success", "title": "실시간 공고를 불러왔습니다", "lines": [describe(s) for s in statuses]}
     lines = [describe(s) for s in statuses]

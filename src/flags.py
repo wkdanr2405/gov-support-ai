@@ -4,4 +4,4 @@ import streamlit as st
 
 @st.cache_resource
 def shared_flags() -> dict:
-    return {"api_outage": "off"}      # off / partial / all / nosnap (src/data_sources/live.py OUTAGE_MODES)
+    return {"api_outage": "off"}      # off / partial / all (src/data_sources/live.py OUTAGE_MODES)

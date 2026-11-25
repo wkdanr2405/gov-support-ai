@@ -54,15 +54,15 @@ def test_all_live_ok(snaps):
     assert banner(st)["level"] == "success"
 
 
-def test_one_source_fails_falls_back_to_its_snapshot_and_says_why(snaps):
+def test_one_source_fails_its_announcements_are_excluded_and_says_why(snaps):
     items, st = run(snaps, k=boom("K-Startup API 연결 실패: timeout"))
     s = by(st)
-    assert s["kstartup"]["mode"] == "fallback" and "연결" in s["kstartup"]["reason"] and s["kstartup"]["count"] == 1 and s["kstartup"]["date"]
+    assert s["kstartup"]["mode"] == "missing" and "연결" in s["kstartup"]["reason"] and s["kstartup"]["count"] == 0
     assert s["bizinfo"]["mode"] == "live"
-    assert {i["title"] for i in items} == {"저장본 사업 K", "실시간 기업마당 사업"}
+    assert {i["title"] for i in items} == {"실시간 기업마당 사업"}          # 실패한 출처의 저장본 공고는 추천에 들어가지 않는다
     b = banner(st)
-    assert b["level"] == "error" and "저장본" in b["title"] and any("K-Startup" in x and "연결" in x for x in b["lines"])
-    assert "원문" in " ".join(b["lines"])
+    assert b["level"] == "error" and "일부" in b["title"] and any("K-Startup" in x and "연결" in x and "제외" in x for x in b["lines"])
+    assert b["lines"][0].startswith("❌") and b["lines"][1].startswith("✅")
 
 
 def test_reason_texts_are_plain_and_never_leak_keys(snaps):
@@ -81,32 +81,17 @@ def test_both_fail_and_no_snapshot_means_no_announcements_and_no_sample(tmp_path
     assert "샘플" not in " ".join([b["title"], *b["lines"]])
 
 
-def test_partial_failure_banner_is_red_with_per_line_marks(snaps):
-    _, st = run(snaps, force="partial")
-    b = banner(st)
-    assert b["level"] == "error" and "일부" in b["title"]
-    assert b["lines"][0].startswith("❌") and b["lines"][1].startswith("✅")
-
-
-def test_all_failure_with_snapshot_is_red(snaps):
-    _, st = run(snaps, force="all")
-    assert banner(st)["level"] == "error" and "저장본으로 추천했습니다" in banner(st)["title"]
-
-
-@pytest.mark.parametrize("force,expect", [("partial", {"kstartup": "fallback", "bizinfo": "live"}),
-                                          ("all", {"kstartup": "fallback", "bizinfo": "fallback"})])
-def test_outage_demo_modes(snaps, force, expect):
-    _, st = run(snaps, force=force)
-    assert {k: v["mode"] for k, v in by(st).items()} == expect
+@pytest.mark.parametrize("force,expect,n", [("partial", {"kstartup": "missing", "bizinfo": "live"}, 1),
+                                            ("all", {"kstartup": "missing", "bizinfo": "missing"}, 0)])
+def test_outage_demo_modes(snaps, force, expect, n):
+    items, st = run(snaps, force=force)
+    assert {k: v["mode"] for k, v in by(st).items()} == expect and len(items) == n
     assert "장애 시연" in by(st)["kstartup"]["reason"]
-
-
-def test_outage_demo_nosnap_shows_no_announcements(snaps):
-    items, st = run(snaps, force="nosnap")
-    assert items == [] and all(s["mode"] == "missing" for s in st)
+    b = banner(st)
+    assert b["level"] == "error" and ("추천할 수 없습니다" in b["title"] if n == 0 else "일부" in b["title"])
 
 
 def test_describe_lines(snaps):
     _, st = run(snaps, k=boom("연결 실패"))
     s = by(st)
-    assert "실시간" in describe(s["bizinfo"]) and "저장본" in describe(s["kstartup"]) and "실패" in describe(s["kstartup"])
+    assert "실시간" in describe(s["bizinfo"]) and "제외" in describe(s["kstartup"]) and "실패" in describe(s["kstartup"])

@@ -401,7 +401,7 @@ def test_data_banner_default_snapshot_is_shown_with_age_and_source_line():
     assert any("출처:" in str(c.value) and "공고번호" in str(c.value) for c in at.caption)      # 공고 카드마다 출처·번호·기준 시점
 
 
-@pytest.mark.parametrize("mode,title", [("all", "저장본으로 추천했습니다"), ("partial", "추천했습니다"), ("nosnap", "추천할 수 없습니다")])
+@pytest.mark.parametrize("mode,title", [("all", "추천할 수 없습니다"), ("partial", "")])
 def test_outage_demo_shows_failure_screen(mode, title):
     from src.flags import shared_flags
     at = demo()
@@ -409,11 +409,11 @@ def test_outage_demo_shows_failure_screen(mode, title):
     btn(at, "최신 공고 확인 (실시간 조회)").click().run()
     assert not at.exception
     t = _alerts(at)
-    assert title in t and "장애 시연" in t
-    if mode == "nosnap":
-        assert "세액공제" in t and "샘플" not in t and not any("출처:" in str(c.value) for c in at.caption)
-    else:
-        assert "원문 링크에서 확인" in t
+    assert title in t and "장애 시연" in t and "샘플" not in t
+    if mode == "all":                                  # 실패한 출처의 공고는 저장본으로 대체하지 않아 추천 카드가 없다
+        assert not any("출처:" in str(c.value) for c in at.caption)
+    else:                                              # 개발 컨테이너는 기업마당도 연결이 안 되어 둘 다 실패일 수 있다
+        assert "추천" in t and not any("K-Startup" in str(c.value) and "출처:" in str(c.value) for c in at.caption)
 
 
 def test_admin_can_switch_outage_demo():
