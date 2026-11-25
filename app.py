@@ -27,10 +27,13 @@ from src.ui_pro import VIRTUAL_NOTICE, render_admin_home, render_company_profile
 from src.experts import STEPS, build_brief, load_experts, rank_experts, receipt_no, show_etc
 from src.experts.db import add_request, get_company, list_requests_by_client, new_db
 from src.report.docs import NOTICE as DOCS_NOTICE, required_documents
+from src.report.evidence import build_evidence
 from src.report.explain import build_facts, explain
 from src.report.pdf import build_brief_pdf, build_pdf
 
 from src.tax_engine import calculate, industry_list, judge_sme, scenario
+from src.tax_engine.params import load_params
+from src.data_sources.status import source_status
 
 DISCLAIMER = "참고용 예상치이며 최종 판단은 세무 전문가가 합니다."
 
@@ -445,6 +448,23 @@ with top_cust:
                 st.markdown("\n".join("- " + x for x in d["documents"]))
             if not docs:
                 st.write("금액이 계산된 공제·감면이 없어 안내할 서류가 없습니다.")
+        input_rows = [["입력 방식", BASIS], ["업종 · 소재지", f"{label.split(' ', 1)[1]} · {sido}"], ["설립일", founded.isoformat()],
+                      ["평균 매출액 · 자산총액", f"{fmt_won(revenue_w)}원 · {fmt_won(assets_w)}원"],
+                      ["상시근로자", f"전년 {int(ep)}명 → 당해 {int(ec)}명 (청년 등 {int(yp)}명 → {int(yc)}명)"],
+                      ["연구·인력개발비", f"당해 {fmt_won(rnd_curr_w)}원 · 전년 {fmt_won(rnd_prev_w)}원"]]
+        evidence = build_evidence(res, sme if not sme_blank else None, load_params(2026), out["items"], source_status(), out["excluded"],
+                                  out["scored"], input_rows)
+        with st.expander("계산·추천 근거 (PDF 2쪽 부록과 같은 내용)"):
+            st.markdown("**세액공제·감면 계산 근거**")
+            st.dataframe(pd.DataFrame([{"항목": r["name"], "적용 조문": r["law_ref"], "계산 방식": r["formula"], "이번 결과": r["result"],
+                                        "확인 상태": r["status"]} for r in evidence["tax_rows"]]), hide_index=True, use_container_width=True)
+            st.markdown("**추천 공고 근거**")
+            for r in evidence["match_rows"]:
+                st.markdown(f"- **{r['title']}** · {r['source_label']}" + ("" if r["sample"] or not r["id"] else f" · 번호 {r['id']}")
+                            + f" · 마감 {r['deadline']}  \n  {r['why']}" + (f"  \n  원문: {r['url']}" if r["url"] else ""))
+            for s_ in evidence["data_status"]:
+                st.caption(f"공고 데이터: {s_['label']} " + (f"저장본 {s_['count']:,}건 · 수집 {s_['date']} ({s_['age_days']}일 경과)" if s_["mode"] == "snapshot"
+                                                         else f"{s_['count']:,}건 (실제 공고 아님)"))
         if st.button("해설 만들기"):
             with st.spinner("해설을 만드는 중입니다"):
                 st.session_state["explain"] = {"facts": facts, **explain(facts)}
@@ -452,8 +472,8 @@ with top_cust:
         if ex and ex["facts"] == facts:
             st.write(ex["text"])
             st.caption(("AI 작성" if ex["source"] == "llm" else "기본 문장") + (f" · {ex['note']}" if ex["note"] else ""))
-            pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"], docs=docs, basis=BASIS)
-            st.download_button("1페이지 PDF 내려받기", pdf, file_name="세액공제_지원사업_추천_리포트.pdf", mime="application/pdf")
+            pdf = build_pdf(facts, ex["text"], out["items"], res["notes"], ex["source"], docs=docs, basis=BASIS, evidence=evidence)
+            st.download_button("PDF 내려받기 (본문 1쪽 + 근거 부록 1쪽)", pdf, file_name="세액공제_지원사업_추천_리포트.pdf", mime="application/pdf")
         elif ex:
             st.info("입력이 바뀌었습니다. '해설 만들기'를 다시 눌러 주세요.")
         st.warning(f"{DISCLAIMER} 신고 대행·세액 확정·세무 자문이 아닙니다.")

@@ -9,15 +9,15 @@ M = [{"title": "기술개발 지원사업", "d_day": 18, "period_end": "2026-11-
      {"title": "상시 접수 사업 <테스트> & 특수문자", "d_day": None, "period_end": None, "matched_keywords": []}]
 
 
-def test_pdf_is_single_page_and_has_text():
+def test_pdf_main_body_one_page_plus_appendix():
     facts = build_facts("전자부품 제조업", {"region": "capital"}, RES, M, "서울")
     pdf = build_pdf(facts, template_text(facts) * 2, M, ["가정 1", "가정 2"])
     assert pdf[:4] == b"%PDF"
-    assert len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 1
+    assert len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 2          # 본문 1쪽 + 근거·출처 부록 1쪽
     assert len(pdf) > 5000
 
 
-def test_pdf_with_all_documents_still_single_page():
+def test_pdf_with_all_documents_main_body_still_one_page():
     from src.report.docs import required_documents
     res = {**RES, "credits": [{"id": i, "status": "computed", "in_total": True} for i in
            ("integrated_employment", "rnd_credit", "disaster_loss", "startup_sme_exemption", "sme_special_reduction")]}
@@ -25,7 +25,7 @@ def test_pdf_with_all_documents_still_single_page():
     assert len(docs) == 5
     facts = build_facts("전자부품 제조업", {"region": "capital"}, RES, M, "서울")
     pdf = build_pdf(facts, template_text(facts), M, ["가정 1", "가정 2"], docs=docs)
-    assert len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 1
+    assert len(re.findall(rb"/Type\s*/Page[^s]", pdf)) == 2          # 서류 안내가 가득 차도 본문은 1쪽, 나머지는 부록
 
 
 def test_brief_pdf_is_single_page_with_all_documents():

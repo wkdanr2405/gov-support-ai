@@ -13,7 +13,7 @@ def _employment(inp: dict, params: dict) -> dict:
     inc = headcount_increases(inp["employees_prev"], inp["employees_curr"], inp["youth_prev"], inp["youth_curr"])
     by_year = employment_credit(inp["region"], inc, params)
     ie = params["integrated_employment"]
-    base = {"id": "integrated_employment", "name": "통합고용세액공제", "law_ref": ie["law_ref"], "verified": ie["verified"],
+    base = {"id": "integrated_employment", "name": "통합고용세액공제", "law_ref": ie["law_ref"], "verified": ie["verified"], "checked_at": ie.get("checked_at", ""), "evidence": ie.get("evidence", ""),
             "formula": "증가 인원 × 연차별 1인당 금액", "raw": {"increases": inc, "by_year": by_year}}
     if sum(by_year) == 0:
         return {**base, "status": "not_applicable", "basis": "상시근로자(청년 포함)가 늘지 않았습니다",
@@ -25,7 +25,7 @@ def _employment(inp: dict, params: dict) -> dict:
 def _rnd(inp: dict, params: dict) -> dict:
     r = rnd_credit(inp.get("rnd_curr", 0), inp.get("rnd_prev", 0), inp.get("rnd_prev4_avg"), params)
     rc = params["rnd_credit"]
-    base = {"id": "rnd_credit", "name": "연구·인력개발비 세액공제", "law_ref": rc["law_ref"], "verified": rc["verified"],
+    base = {"id": "rnd_credit", "name": "연구·인력개발비 세액공제", "law_ref": rc["law_ref"], "verified": rc["verified"], "checked_at": rc.get("checked_at", ""), "evidence": rc.get("evidence", ""),
             "formula": "당기분 25% 또는 증가분 50% 중 유리한 쪽", "raw": r}
     if r["method"] == "none":
         return {**base, "status": "not_applicable", "basis": r["increase_note"], "amount_first_year": 0}
@@ -36,7 +36,7 @@ def _disaster(inp: dict, params: dict) -> dict:
     r = disaster_credit(inp.get("disaster_lost_assets", 0), inp.get("disaster_total_assets", 0), inp.get("disaster_unpaid_tax", 0),
                         inp.get("disaster_current_tax", 0), inp.get("disaster_other_reductions", 0), params)
     d = params["disaster_loss"]
-    base = {"id": "disaster_loss", "name": "재해손실세액공제", "law_ref": d["law_ref"], "verified": d["verified"],
+    base = {"id": "disaster_loss", "name": "재해손실세액공제", "law_ref": d["law_ref"], "verified": d["verified"], "checked_at": d.get("checked_at", ""), "evidence": d.get("evidence", ""),
             "formula": "(미납 법인세 + 해당연도 법인세) × 상실비율, 상실 자산가액 한도", "raw": r}
     if r["amount"] > 0:
         basis = f"재해상실비율 {r['ratio_pct']}%" + (" · 상실 자산가액 한도 적용" if r["cap_applied"] else "")
@@ -46,7 +46,7 @@ def _disaster(inp: dict, params: dict) -> dict:
 
 def _reduction_card(cid: str, name: str, key: str, r: dict, params: dict, formula: str) -> dict:
     d = params[key]
-    base = {"id": cid, "name": name, "law_ref": d["law_ref"], "verified": d["verified"], "formula": formula, "raw": r}
+    base = {"id": cid, "name": name, "law_ref": d["law_ref"], "verified": d["verified"], "checked_at": d.get("checked_at", ""), "evidence": d.get("evidence", ""), "formula": formula, "raw": r}
     if r["amount"] > 0:
         size = f"{r['size']} · " if r.get("size") else ""
         basis = f"{size}감면율 {r['rate_pct']}%" + (" · 한도 적용" if r["cap_applied"] else "")

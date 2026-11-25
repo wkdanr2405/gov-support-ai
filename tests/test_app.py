@@ -375,3 +375,15 @@ def test_data_survives_refresh_is_shared_across_sessions_and_admin_can_reset():
     at5 = fresh()
     login_ui(at5, "회계법인/세무법인", "푸른회계법인")
     assert receipt not in " ".join(e.label for e in at5.expander)
+
+
+def test_report_tab_shows_basis_and_pdf_has_appendix():
+    """피드백 11/25 ②: 해설 탭에 계산·추천 근거(조문·확인 상태·공고 출처)가 보이고, PDF는 본문 1쪽 + 근거 부록 1쪽."""
+    at = demo()
+    btn(at, "해설 만들기").click().run()
+    assert not at.exception
+    text = md(at) + " ".join(str(c.value) for c in at.caption)
+    assert "공고 데이터:" in text and "저장본" in text
+    frames = [d.value for d in at.dataframe]
+    basis = next(f for f in frames if "적용 조문" in f.columns)
+    assert any("조세특례제한법" in v for v in basis["적용 조문"]) and basis["확인 상태"].str.contains("조문 확인").any()

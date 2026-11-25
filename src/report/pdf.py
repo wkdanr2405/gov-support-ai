@@ -9,7 +9,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .docs import NOTICE
 from .explain import DISCLAIMER
@@ -86,14 +86,67 @@ _TITLE_REPORT = '<font name="Display">세액공제</font><font name="Nanum">·</
 _TITLE_BRIEF = '<font name="Display">상담 전달 자료</font>'
 
 
+def _appendix(k: "_Kit", matches: list[dict], notes: list[str], ev: dict | None) -> list:
+    """2쪽 부록: 세액공제 계산 근거(조문·확인일·미확인 표시)와 공고 추천 근거(출처·번호·원문 링크·수집일)."""
+    from src.report.evidence import match_rows
+    st, table = k.st, k.table
+    MU = colors.HexColor(MUTE)
+    ev = ev or {"tax_rows": [], "match_rows": match_rows(matches), "data_status": [], "excluded": {}, "scored": 0, "input_rows": []}
+    story = [PageBreak(), k.head("부록", '<font name="Display">계산과 추천 근거, 출처</font>',
+                                  f"작성일 {date.today().isoformat()} · {DISCLAIMER}"), Spacer(1, 3 * mm)]
+    if ev["tax_rows"]:
+        story += [Paragraph("A. 세액공제·감면 계산 근거", st(11)), Spacer(1, 1.5 * mm),
+                  table([["항목", "적용 조문", "계산 방식", "이번 결과", "확인 상태"]]
+                        + [[r["name"], r["law_ref"], r["formula"], r["result"], r["status"]] for r in ev["tax_rows"]],
+                        [24 * mm, 40 * mm, 32 * mm, 60 * mm, 22 * mm], size=6.5, pad=1.5),
+                  Paragraph("금액은 규칙 엔진(코드)이 법령 수치 파일(조문 출처·확인일 기록)로 계산했고, AI는 계산에 관여하지 않습니다. "
+                            "'일부 미확인'은 조문 확인이 끝나지 않은 세부 규정이 남아 있다는 뜻입니다. 최저한세는 반영하지 않았습니다.",
+                            st(7, 10.5, textColor=MU)), Spacer(1, 3 * mm)]
+    if ev["input_rows"]:
+        story += [Paragraph("B. 계산에 사용한 입력값", st(11)), Spacer(1, 1.5 * mm), table(ev["input_rows"], [38 * mm, 140 * mm], head=False, size=7, pad=1.5),
+                  Spacer(1, 3 * mm)]
+    story += [Paragraph("C. 추천 공고 근거 (상위 3건)", st(11)), Spacer(1, 1.5 * mm)]
+    rows = [["공고", "출처 · 공고번호", "마감", "추천 근거"]]
+    for r in ev["match_rows"]:
+        num = "" if r["sample"] else (f" · 번호 {r['id']}" if r["id"] else "")
+        why = r["why"] + ("".join(f" · 확인 필요: {f}" for f in r["flags"]))
+        rows.append([r["title"][:60] + (f" ({r['agency']})" if r["agency"] else ""), r["source_label"] + num, r["deadline"], why])
+    if len(rows) == 1:
+        rows.append(["조건에 맞는 후보 없음", "-", "-", "-"])
+    story.append(table(rows, [52 * mm, 34 * mm, 24 * mm, 68 * mm], size=6.5, pad=1.5))
+    links = [r for r in ev["match_rows"] if r["url"]]
+    if links:
+        story.append(Spacer(1, 1.5 * mm))
+        story.append(table([["원문 링크"]] + [[f"{i}. {r['url']}"] for i, r in enumerate(links, 1)], [178 * mm], size=6.5, pad=1.5))
+    story.append(Spacer(1, 3 * mm))
+    story += [Paragraph("D. 공고 데이터 기준", st(11)), Spacer(1, 1.5 * mm)]
+    drows = []
+    for s in ev["data_status"]:
+        if s["mode"] == "snapshot":
+            drows.append([s["label"], f"저장본 {s['count']:,}건 · 수집 {s['date']} ({s['age_days']}일 경과)"])
+        else:
+            drows.append([s["label"], f"가상 샘플 {s['count']:,}건 · 실제 공고가 아니며 외부 API 저장본이 없어 대체함"])
+    if ev["data_status"]:
+        ex = ev["excluded"]
+        drows.append(["후보 선별", f"조건 불일치로 제외 {sum(ex.values()):,}건 (" + ", ".join(f"{a} {b:,}" for a, b in ex.items()) + f") · 점수 계산 {ev['scored']:,}건"])
+    if drows:
+        story.append(table(drows, [48 * mm, 130 * mm], head=False, size=7, pad=1.5))
+    story += [Spacer(1, 3 * mm), Paragraph("E. 유의사항", st(11)), Spacer(1, 1.5 * mm),
+              Paragraph("· " + "<br/>· ".join(_esc(x) for x in (
+        "공고는 수집일 기준 저장본입니다. 수집 이후 마감·수정된 공고는 반영되지 않았을 수 있으니 신청 전 원문 링크에서 마감과 자격을 확인하세요.",
+        "추천 점수는 키워드·의미 유사도를 섞은 상대값으로 추천 순서를 정하는 데만 쓰며, 신청 자격 판정이 아닙니다.",
+        "법령 수치의 출처 조문과 확인일은 data/tax_params 파일에 기록되어 있습니다.") + tuple(notes[:2])), st(7, 10.5, textColor=MU))]
+    return story
+
+
 def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[str], explain_source: str = "template",
-              docs: list[dict] | None = None, basis: str = "가상 기업 기준 예시") -> bytes:
+              docs: list[dict] | None = None, basis: str = "가상 기업 기준 예시", evidence: dict | None = None) -> bytes:
     k = _Kit()
     st, table, W = k.st, k.table, k.W
     buf = BytesIO()
     doc = k.doc(buf, "세액공제·정부지원사업 추천 리포트")
     c = facts["세액공제(원)"]
-    story = [k.head("세액공제 · 정부지원사업", _TITLE_REPORT, f"{basis} · 작성일 {date.today().isoformat()} · {DISCLAIMER}"),
+    story = [k.head("세액공제 · 정부지원사업", _TITLE_REPORT, f"{basis} · 작성일 {date.today().isoformat()} · {DISCLAIMER} 근거·출처는 2쪽 부록"),
              Spacer(1, 2 * mm), k.big("첫해 예상 감면액", c["첫해 합계"]), Spacer(1, 3 * mm)]
 
     story += [Paragraph("1. 기업 조건", st(11)), Spacer(1, 1.5 * mm),
@@ -124,9 +177,8 @@ def build_pdf(facts: dict, explanation: str, matches: list[dict], notes: list[st
     for para in explanation.split("\n"):
         if para.strip():
             story.append(Paragraph(_esc(para), st(9, 13.5)))
-    story += [Spacer(1, 3 * mm), Paragraph("유의사항", st(9)),
-              Paragraph("· " + "<br/>· ".join(_esc(n) for n in notes[:6]), st(7.5, 11, textColor=colors.HexColor(MUTE))),
-              Spacer(1, 2 * mm), k.foot(f"본 문서는 {DISCLAIMER} 공고 신청 자격과 마감은 반드시 원문 공고에서 확인하세요.")]
+    story += [Spacer(1, 3 * mm), k.foot(f"본 문서는 {DISCLAIMER} 공고 신청 자격과 마감은 반드시 원문 공고에서 확인하세요.")]
+    story += _appendix(k, matches, notes, evidence)
     doc.build(story)
     return buf.getvalue()
 
